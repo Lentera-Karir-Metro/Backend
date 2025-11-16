@@ -1,60 +1,75 @@
 // File: app.js
+/**
+ * @fileoverview Titik masuk utama (Entry Point) untuk aplikasi backend Lentera Karir.
+ * Bertanggung jawab untuk inisialisasi server Express, koneksi database, dan pemasangan semua routes.
+ */
 
 // 1. Impor package
-require('dotenv').config(); 
-const express = require('express');
-const cors = require('cors');
-const db = require('./models'); // Merujuk ke models/index.js
+require('dotenv').config(); // Memuat variabel lingkungan dari file .env
+const express = require('express'); // Framework server utama
+const cors = require('cors'); // Middleware untuk mengizinkan akses lintas domain (frontend)
+const db = require('./models'); // Memuat koneksi database Sequelize dan semua model
 
 // 2. Inisialisasi Express
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Menggunakan port dari .env atau default 3000
 
-// 3. Pasang Middleware
-app.use(cors()); 
-app.use(express.json()); 
+// 3. Pasang Middleware Global
+app.use(cors()); // Memasang CORS
+app.use(express.json()); // Memungkinkan parsing request body dalam format JSON
 
-// 4. Test Route
+// 4. Test Route (Untuk pengecekan status server)
 app.get('/api/v1/test', (req, res) => {
   res.status(200).json({ 
     message: 'API Backend Lentera Karir Berhasil!' 
   });
 });
 
-// 5. Pasang Routes 
-    const authRoutes = require('./src/routes/authRoutes');
-    app.use('/api/v1/auth', authRoutes);
+// 5. Pasang Routes (Semua route menggunakan prefix umum /api/v1)
 
-    const learningPathRoutes = require('./src/routes/learningPathRoutes');
-    app.use('/api/v1/admin/learning-paths', learningPathRoutes);
+// --- A. Otentikasi ---
+const authRoutes = require('./src/routes/authRoutes');
+app.use('/api/v1/auth', authRoutes); // POST /api/v1/auth/sync
 
-    const courseModuleRoutes = require('./src/routes/courseModuleRoutes');
-    app.use('/api/v1/admin', courseModuleRoutes); 
+// --- B. Rute ADMIN (Hanya dapat diakses oleh Admin) ---
+const learningPathRoutes = require('./src/routes/learningPathRoutes');
+app.use('/api/v1/admin/learning-paths', learningPathRoutes); // CRUD LP
+
+const courseModuleRoutes = require('./src/routes/courseModuleRoutes');
+app.use('/api/v1/admin', courseModuleRoutes); // CRUD Course/Module & Reordering
     
-    const quizRoutes = require('./src/routes/quizRoutes');
-    app.use('/api/v1/admin', quizRoutes);
+const quizRoutes = require('./src/routes/quizRoutes');
+app.use('/api/v1/admin', quizRoutes); // CRUD Quiz Engine
 
-    const userManagementRoutes = require('./src/routes/userManagementRoutes');
-    app.use('/api/v1/admin', userManagementRoutes);
+const userManagementRoutes = require('./src/routes/userManagementRoutes');
+app.use('/api/v1/admin', userManagementRoutes); // Manajemen User (Deaktivasi, Enroll Manual)
 
-    const webhookRoutes = require('./src/routes/webhookRoutes');
-    app.use('/api/v1', webhookRoutes);
+// --- C. Rute Otomatisasi (Webhooks) ---
+const webhookRoutes = require('./src/routes/webhookRoutes');
+app.use('/api/v1', webhookRoutes); // Webhook Midtrans & Supabase (Tidak Terproteksi)
 
-    const publicRoutes = require('./src/routes/publicRoutes');
-    app.use('/api/v1', publicRoutes); 
+// --- D. Rute User & Publik ---
+const publicRoutes = require('./src/routes/publicRoutes');
+app.use('/api/v1', publicRoutes); // Katalog Publik (Tidak Terproteksi)
 
-    const paymentRoutes = require('./src/routes/paymentRoutes');
-    app.use('/api/v1', paymentRoutes);
+const paymentRoutes = require('./src/routes/paymentRoutes');
+app.use('/api/v1', paymentRoutes); // Checkout Pembayaran (Wajib Login)
 
-    const learningRoutes = require('./src/routes/learningRoutes');
-    app.use('/api/v1', learningRoutes);
+const learningRoutes = require('./src/routes/learningRoutes');
+app.use('/api/v1', learningRoutes); // Progres Belajar & Kuis (Wajib Login)
+
 
 // 6. Jalankan Server & Tes Koneksi Database
+/**
+ * @description Menghidupkan server dan menguji koneksi ke database MySQL.
+ * @listens {PORT}
+ */
 app.listen(PORT, async () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
   
   try {
-    await db.sequelize.authenticate();
+    // Memastikan koneksi database valid sebelum menerima request
+    await db.sequelize.authenticate(); 
     console.log('Koneksi ke database MySQL (database_lentera_karir) BERHASIL.');
   } catch (error) {
     console.error('Koneksi ke database GAGAL:', error);

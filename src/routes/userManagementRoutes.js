@@ -1,8 +1,13 @@
 // File: src/routes/userManagementRoutes.js
+/**
+ * @fileoverview Definisi rute untuk Manajemen User (CRUD, Deaktivasi, Enroll Manual).
+ * Semua rute dalam file ini dilindungi dan hanya dapat diakses oleh Admin.
+ * Rute diakses dengan prefix /api/v1/admin.
+ */
 const express = require('express');
 const router = express.Router();
 
-// Impor controller
+// Impor controller yang menangani logika manajemen user
 const {
   getAllUsers,
   updateUser,
@@ -11,28 +16,52 @@ const {
   manualEnrollUser,
 } = require('../controllers/userManagementController');
 
-// Impor middleware
+// Impor middleware otorisasi
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
 
-// Lindungi semua rute di file ini dengan middleware admin
+// --- Pemasangan Middleware Global ---
+/**
+ * Lindungi SEMUA rute yang didefinisikan di bawah ini.
+ * Akses dibatasi hanya untuk User dengan role 'admin'.
+ */
 router.use(protect);
 router.use(isAdmin);
 
-// Definisikan rute
+// --- Definisi Rute ---
 
-// /api/v1/admin/users
+/**
+ * @method GET
+ * @route /users
+ * @description Mengambil daftar semua user di database lokal (MySQL).
+ */
 router.get('/users', getAllUsers);
 
-// /api/v1/admin/users/:id
+/**
+ * @method PUT
+ * @route /users/:id
+ * @description Memperbarui data user (misal: nama_lengkap untuk sertifikat).
+ */
 router.put('/users/:id', updateUser);
 
-// /api/v1/admin/users/:id/deactivate
+/**
+ * @method POST
+ * @route /users/:id/deactivate
+ * @description Menonaktifkan user secara sinkron (MySQL + Supabase ban).
+ */
 router.post('/users/:id/deactivate', deactivateUser);
 
-// /api/v1/admin/users/:id/reset-password
+/**
+ * @method POST
+ * @route /users/:id/reset-password
+ * @description Memicu pengiriman link reset password ke user melalui API Supabase Admin.
+ */
 router.post('/users/:id/reset-password', triggerPasswordReset);
 
-// /api/v1/admin/users/:id/enroll
+/**
+ * @method POST
+ * @route /users/:id/enroll
+ * @description Mendaftarkan user ke Learning Path secara manual (oleh Admin).
+ */
 router.post('/users/:id/enroll', manualEnrollUser);
 
 module.exports = router;

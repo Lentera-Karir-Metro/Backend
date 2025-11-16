@@ -1,4 +1,8 @@
 // File: src/controllers/learningController.js
+/**
+ * @fileoverview Controller untuk mengelola fungsionalitas belajar bagi pengguna (progres, penguncian, dashboard).
+ * Controller ini hanya diakses oleh User yang sudah login (melalui middleware protect).
+ */
 const db = require('../../models');
 const { 
   LearningPath, 
@@ -7,10 +11,17 @@ const {
   UserEnrollment, 
   UserModuleProgress 
 } = db;
-const { Op } = require('sequelize');
+const { Op } = require('sequelize'); // Diperlukan untuk query kompleks (misal: Op.in)
 
-// @desc    Mengambil dashboard user (daftar learning path yg terdaftar)
-// @route   GET /api/v1/learn/dashboard
+/**
+ * @function getMyDashboard
+ * @description Mengambil daftar semua Learning Path yang telah berhasil didaftarkan (dibeli) oleh user.
+ * @route GET /api/v1/learn/dashboard
+ *
+ * @param {object} req - Objek request (req.user.id disediakan oleh middleware protect)
+ * @param {object} res - Objek response
+ * @returns {object} Array LearningPath yang di-enroll.
+ */
 const getMyDashboard = async (req, res) => {
   const userId = req.user.id;
   try {
@@ -24,7 +35,7 @@ const getMyDashboard = async (req, res) => {
       order: [['enrolled_at', 'DESC']]
     });
 
-    // Format ulang data agar rapi
+    // Ekstrak data LearningPath dari objek enrollment
     const learningPaths = enrollments.map(en => en.LearningPath);
 
     return res.status(200).json(learningPaths);
@@ -33,8 +44,16 @@ const getMyDashboard = async (req, res) => {
   }
 };
 
-// @desc    Mengambil konten Learning Path (Validasi enrollment & progres)
-// @route   GET /api/v1/learn/learning-paths/:lp_id
+/**
+ * @function getLearningPathContent
+ * @description Mengambil seluruh struktur konten (Course/Module) dari Learning Path tertentu,
+ * disertai status progres dan penguncian (lock status).
+ * @route GET /api/v1/learn/learning-paths/:lp_id
+ *
+ * @param {object} req - Objek request (params: lp_id, req.user.id)
+ * @param {object} res - Objek response
+ * @returns {object} Struktur Learning Path lengkap dengan status is_locked dan is_completed.
+ */
 const getLearningPathContent = async (req, res) => {
   const userId = req.user.id;
   const { lp_id } = req.params;
@@ -48,12 +67,11 @@ const getLearningPathContent = async (req, res) => {
       return res.status(403).json({ message: 'Akses ditolak. Anda belum terdaftar di learning path ini.' });
     }
 
-    // 2. Ambil semua progres modul yg telah diselesaikan user
+    // 2. Ambil semua progres modul yg telah diselesaikan user (untuk lookup cepat)
     const completedProgress = await UserModuleProgress.findAll({
       where: { user_id: userId },
       attributes: ['module_id']
     });
-    // Buat Set (HashSet) agar pencarian cepat (O(1))
     const completedModuleIds = new Set(completedProgress.map(p => p.module_id));
 
     // 3. Ambil struktur Learning Path, Course, dan Module
@@ -64,7 +82,8 @@ const getLearningPathContent = async (req, res) => {
         include: {
           model: Module,
           as: 'modules',
-          attributes: { exclude: ['video_url', 'ebook_url'] } // Sembunyikan URL konten
+          // Sembunyikan URL konten untuk mencegah akses langsung tanpa validasi
+          attributes: { exclude: ['video_url', 'ebook_url'] } 
         },
       },
       order: [
@@ -72,57 +91,71 @@ const getLearningPathContent = async (req, res) => {
         [{ model: Course, as: 'courses' }, { model: Module, as: 'modules' }, 'sequence_order', 'ASC']
       ]
     });
-
+    
     if (!learningPath) {
       return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
     }
 
     // 4. LOGIKA PENGUNCIAN (Kritis)
-    // Kita proses data JSON-nya untuk menambahkan status 'is_completed' dan 'is_locked'
     const lpData = learningPath.toJSON();
-    let isPreviousCourseCompleted = true; // Course pertama selalu terbuka
+    // Diasumsikan course pertama selalu terbuka
+    let isPreviousCourseCompleted = true; 
 
     for (const course of lpData.courses) {
       let totalModules = course.modules.length;
       let completedModules = 0;
-      let isPreviousModuleCompleted = true; // Modul pertama selalu terbuka
+      // Diasumsikan modul pertama selalu terbuka
+      let isPreviousModuleCompleted = true; 
 
-      // Cek kunci Course: apakah course sebelumnya selesai?
-      course.is_locked = !isPreviousCourseCompleted; //
+      // Cek kunci Course: Course B terkunci sampai Course A selesai 100%
+      course.is_locked = !isPreviousCourseCompleted;
 
       for (const module of course.modules) {
+        // Cek status selesai dari user progress
         module.is_completed = completedModuleIds.has(module.id);
         if (module.is_completed) {
           completedModules++;
         }
-
-        // Cek kunci Modul: apakah course-nya terkunci ATAU modul sebelumnya blm selesai?
-        module.is_locked = course.is_locked || !isPreviousModuleCompleted; //
-
-        // Siapkan untuk iterasi modul berikutnya
+        
+        // Cek kunci Modul: Modul 2 terkunci sampai Modul 1 selesai
+        // Modul terkunci jika: (Course-nya terkunci) ATAU (Modul sebelumnya belum selesai)
+        module.is_locked = course.is_locked || !isPreviousModuleCompleted; 
+        
+        // Siapkan status completion untuk iterasi modul berikutnya
         isPreviousModuleCompleted = module.is_completed;
       }
-
+      
+      // Hitung apakah course saat ini selesai
       course.is_completed = (totalModules > 0 && completedModules === totalModules);
-      // Siapkan untuk iterasi course berikutnya
+      
+      // Siapkan status completion course saat ini untuk iterasi course berikutnya
       isPreviousCourseCompleted = course.is_completed;
     }
 
     return res.status(200).json(lpData);
 
   } catch (err) {
+    console.error('Error saat mengambil konten LP:', err.message);
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };
 
-// @desc    Menandai modul sebagai selesai (TOMBOL "TANDAI SELESAI")
-// @route   POST /api/v1/learn/modules/:module_id/complete
+/**
+ * @function markModuleAsComplete
+ * @description Memvalidasi akses, lalu menandai modul sebagai selesai di database.
+ * Ini adalah validasi sisi Backend untuk tombol "Tandai Selesai".
+ * @route POST /api/v1/learn/modules/:module_id/complete
+ *
+ * @param {object} req - Objek request (params: module_id, req.user.id)
+ * @param {object} res - Objek response
+ * @returns {object} Status completion.
+ */
 const markModuleAsComplete = async (req, res) => {
   const userId = req.user.id;
   const { module_id } = req.params;
 
   try {
-    // 1. Cek apakah modul ada
+    // 1. Cek eksistensi modul dan ambil data Course terkait
     const module = await Module.findByPk(module_id, {
       include: { model: Course, attributes: ['learning_path_id', 'sequence_order'] }
     });
@@ -142,10 +175,9 @@ const markModuleAsComplete = async (req, res) => {
       return res.status(403).json({ message: 'Akses ditolak (tidak terdaftar).' });
     }
 
-    // 3. Cek Logika Penguncian (Validasi Backend)
-    // (Kita harus cek ulang logika penguncian di sini agar user tidak curang)
-
-    // 3a. Cek modul sebelumnya (jika ada)
+    // 3. VALIDASI PENGUNCIAN BACKEND
+    
+    // 3a. Cek modul sebelumnya (jika sequence_order > 1)
     if (module.sequence_order > 1) {
       const prevModule = await Module.findOne({
         where: {
@@ -153,6 +185,7 @@ const markModuleAsComplete = async (req, res) => {
           sequence_order: module.sequence_order - 1
         }
       });
+      // Jika modul sebelumnya ada, cek progresnya
       if (prevModule) {
         const prevProgress = await UserModuleProgress.findOne({
           where: { user_id: userId, module_id: prevModule.id }
@@ -163,7 +196,7 @@ const markModuleAsComplete = async (req, res) => {
       }
     }
 
-    // 3b. Cek course sebelumnya (jika ini modul pertama di course > 1)
+    // 3b. Cek course sebelumnya (jika ini modul pertama (sequence_order=1) di course > 1)
     if (module.sequence_order === 1 && module.Course.sequence_order > 1) {
       const prevCourse = await Course.findOne({
         where: {
@@ -172,12 +205,13 @@ const markModuleAsComplete = async (req, res) => {
         },
         include: { model: Module, attributes: ['id'] }
       });
-
+      
       if (prevCourse) {
         const prevCourseModuleIds = prevCourse.modules.map(m => m.id);
         const prevProgressCount = await UserModuleProgress.count({
           where: { user_id: userId, module_id: { [Op.in]: prevCourseModuleIds } }
         });
+        // Course sebelumnya selesai jika jumlah progres sama dengan jumlah modul
         if (prevProgressCount < prevCourseModuleIds.length) {
           return res.status(403).json({ message: 'Course sebelumnya belum selesai.' });
         }
@@ -189,7 +223,7 @@ const markModuleAsComplete = async (req, res) => {
       where: { user_id: userId, module_id: module.id },
       defaults: { is_completed: true }
     });
-
+    
     if (!created) {
       return res.status(200).json({ message: 'Modul sudah ditandai selesai.' });
     }
@@ -197,6 +231,7 @@ const markModuleAsComplete = async (req, res) => {
     return res.status(201).json({ message: 'Modul berhasil ditandai selesai.' });
 
   } catch (err) {
+    console.error('Error saat menandai modul selesai:', err.message);
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };

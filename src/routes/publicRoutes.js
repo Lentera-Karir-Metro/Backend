@@ -1,17 +1,38 @@
 // File: src/routes/publicRoutes.js
+/**
+ * @fileoverview Definisi rute untuk Katalog Publik (Public Read).
+ * Rute ini dapat diakses oleh user yang BELUM terotentikasi.
+ * Rute diakses dengan prefix /api/v1.
+ */
 const express = require('express');
 const router = express.Router();
+
+// Impor controller untuk Katalog Publik
 const {
   getPublicLearningPaths,
   getPublicLearningPathDetail,
 } = require('../controllers/publicCatalogController');
 
-// Rute ini tidak perlu 'protect'
+// --- Pemasangan Middleware ---
+/**
+ * Rute di bawah ini bersifat publik (Public Access) dan
+ * TIDAK memerlukan middleware 'protect' atau otentikasi JWT.
+ */
 
-// /api/v1/catalog/learning-paths
+// --- Definisi Rute ---
+
+/**
+ * @method GET
+ * @route /catalog/learning-paths
+ * @description Mengambil daftar semua Learning Path yang tersedia (Katalog Utama).
+ */
 router.get('/catalog/learning-paths', getPublicLearningPaths);
 
-// /api/v1/catalog/learning-paths/:id
+/**
+ * @method GET
+ * @route /catalog/learning-paths/:id
+ * @description Mengambil detail satu Learning Path, termasuk struktur kurikulum.
+ */
 router.get('/catalog/learning-paths/:id', getPublicLearningPathDetail);
 
 module.exports = router;

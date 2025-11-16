@@ -1,4 +1,8 @@
 // File: src/controllers/quizLearningController.js
+/**
+ * @fileoverview Controller untuk mengelola fungsionalitas pengerjaan kuis bagi pengguna (User).
+ * Meliputi memulai sesi, menyimpan jawaban parsial (resume), dan penilaian (grading).
+ */
 const db = require('../../models');
 const { 
   Quiz, 
@@ -11,8 +15,15 @@ const {
 } = db;
 const { Op } = require('sequelize');
 
-// Helper untuk validasi akses kuis
+/**
+ * @function validateQuizAccess
+ * @description Helper untuk memverifikasi apakah user terdaftar di Learning Path yang terkait dengan kuis.
+ * @param {string} userId - ID kustom user (LT-XXXXXX)
+ * @param {string} quizId - ID kustom kuis (QZ-XXXXXX)
+ * @returns {object} { error: string | null, status: number }
+ */
 const validateQuizAccess = async (userId, quizId) => {
+  // Cari modul yang terkait dengan kuis ini
   const module = await Module.findOne({ 
     where: { quiz_id: quizId },
     include: { model: db.Course, attributes: ['learning_path_id'] }
@@ -22,6 +33,7 @@ const validateQuizAccess = async (userId, quizId) => {
     return { error: 'Kuis tidak terkait dengan modul manapun.', status: 404 };
   }
 
+  // Cek apakah user terdaftar (enrollment sukses) di Learning Path terkait
   const enrollment = await UserEnrollment.findOne({
     where: {
       user_id: userId,
@@ -34,20 +46,27 @@ const validateQuizAccess = async (userId, quizId) => {
     return { error: 'Akses ditolak. Anda tidak terdaftar di learning path kuis ini.', status: 403 };
   }
 
-  // (Kita bisa tambahkan validasi penguncian modul/course di sini jika perlu)
+  // (Validasi penguncian (lock) konten dilakukan di controller learningController)
 
   return { error: null, status: 200 };
 };
 
 
-// @desc    Memulai atau melanjutkan kuis
-// @route   POST /api/v1/learn/quiz/:quiz_id/start
+/**
+ * @function startOrResumeQuiz
+ * @description Mencari sesi kuis yang sedang berjalan (resume) atau membuat sesi baru (retake).
+ * @route POST /api/v1/learn/quiz/:quiz_id/start
+ *
+ * @param {object} req - Objek request (params: quiz_id)
+ * @param {object} res - Objek response
+ * @returns {object} Detail kuis, attempt_id, dan jawaban parsial yang tersimpan.
+ */
 const startOrResumeQuiz = async (req, res) => {
   const userId = req.user.id;
   const { quiz_id } = req.params;
 
   try {
-    // 1. Validasi apakah user boleh akses kuis ini
+    // 1. Validasi akses
     const access = await validateQuizAccess(userId, quiz_id);
     if (access.error) {
       return res.status(access.status).json({ message: access.error });
@@ -62,7 +81,7 @@ const startOrResumeQuiz = async (req, res) => {
       }
     });
 
-    // 3. Jika tidak ada, buat sesi baru (termasuk untuk retake)
+    // 3. Jika tidak ada, buat sesi baru (termasuk untuk retake tanpa batas)
     if (!attempt) {
       attempt = await UserQuizAttempt.create({
         user_id: userId,
@@ -93,7 +112,7 @@ const startOrResumeQuiz = async (req, res) => {
       attributes: ['question_id', 'selected_option_id']
     });
 
-    // Format jawaban agar mudah dibaca frontend (e.g., { "question_id": "option_id" })
+    // 6. Format jawaban agar mudah dibaca frontend
     const partialAnswers = answers.reduce((acc, ans) => {
       acc[ans.question_id] = ans.selected_option_id;
       return acc;
@@ -102,7 +121,7 @@ const startOrResumeQuiz = async (req, res) => {
     return res.status(200).json({
       attempt_id: attempt.id,
       quiz: quizData,
-      partial_answers: partialAnswers
+      partial_answers: partialAnswers // Data jawaban tersimpan (resume)
     });
 
   } catch (err) {
@@ -110,8 +129,16 @@ const startOrResumeQuiz = async (req, res) => {
   }
 };
 
-// @desc    Menyimpan jawaban parsial (Fitur Resume)
-// @route   POST /api/v1/learn/attempts/:attempt_id/answer
+/**
+ * @function savePartialAnswer
+ * @description Menyimpan jawaban parsial pengguna ke database.
+ * Dipanggil saat user klik "Selanjutnya" atau "Sebelumnya" (fitur Resume).
+ * @route POST /api/v1/learn/attempts/:attempt_id/answer
+ *
+ * @param {object} req - Objek request (params: attempt_id, body: { question_id, selected_option_id })
+ * @param {object} res - Objek response
+ * @returns {object} Status penyimpanan.
+ */
 const savePartialAnswer = async (req, res) => {
   const userId = req.user.id;
   const { attempt_id } = req.params;
@@ -122,16 +149,14 @@ const savePartialAnswer = async (req, res) => {
   }
 
   try {
-    // 1. Validasi attempt
+    // 1. Validasi attempt (hanya bisa diubah oleh pemilik dan harus 'in_progress')
     const attempt = await UserQuizAttempt.findByPk(attempt_id);
-    if (!attempt) {
-      return res.status(404).json({ message: 'Sesi kuis tidak ditemukan.' });
-    }
-    if (attempt.user_id !== userId || attempt.status !== 'in_progress') {
+    if (!attempt || attempt.user_id !== userId || attempt.status !== 'in_progress') {
       return res.status(403).json({ message: 'Akses ditolak.' });
     }
 
     // 2. Simpan atau Update jawaban (Upsert)
+    // Jawaban lama akan ditimpa jika ada
     await UserQuizAnswer.upsert({
       user_quiz_attempt_id: attempt_id,
       question_id: question_id,
@@ -145,14 +170,21 @@ const savePartialAnswer = async (req, res) => {
   }
 };
 
-// @desc    Submit kuis untuk penilaian
-// @route   POST /api/v1/learn/attempts/:attempt_id/submit
+/**
+ * @function submitQuiz
+ * @description Menilai kuis, menghitung skor, dan memperbarui status UserQuizAttempt.
+ * @route POST /api/v1/learn/attempts/:attempt_id/submit
+ *
+ * @param {object} req - Objek request (params: attempt_id)
+ * @param {object} res - Objek response
+ * @returns {object} Hasil penilaian (score, is_passed).
+ */
 const submitQuiz = async (req, res) => {
   const userId = req.user.id;
   const { attempt_id } = req.params;
 
   try {
-    // 1. Validasi attempt
+    // 1. Validasi attempt (harus 'in_progress')
     const attempt = await UserQuizAttempt.findOne({
       where: { id: attempt_id, user_id: userId, status: 'in_progress' },
       include: { model: Quiz } // Ambil data kuis-nya
@@ -162,13 +194,12 @@ const submitQuiz = async (req, res) => {
       return res.status(404).json({ message: 'Sesi kuis tidak ditemukan atau sudah disubmit.' });
     }
 
-    // 2. Ambil semua jawaban user untuk sesi ini
+    // 2. Ambil semua jawaban user & semua jawaban benar dari database
     const userAnswers = await UserQuizAnswer.findAll({
       where: { user_quiz_attempt_id: attempt.id }
     });
 
-    // 3. Ambil semua jawaban yg benar dari database
-    const correctAnswers = await Option.findAll({
+    const correctOptions = await Option.findAll({
       where: { is_correct: true },
       include: {
         model: Question,
@@ -177,10 +208,9 @@ const submitQuiz = async (req, res) => {
       }
     });
 
-    // Buat Peta (Map) jawaban benar agar mudah dicek
-    // { question_id: correct_option_id }
-    const correctMap = correctAnswers.reduce((acc, ans) => {
-      acc[ans.question_id] = ans.id;
+    // 3. Buat Peta (Map) jawaban benar untuk proses penilaian cepat
+    const correctMap = correctOptions.reduce((acc, opt) => {
+      acc[opt.question_id] = opt.id;
       return acc;
     }, {});
 
@@ -189,6 +219,7 @@ const submitQuiz = async (req, res) => {
     // 4. Hitung skor
     let correctCount = 0;
     for (const answer of userAnswers) {
+      // Cek apakah option_id yang dipilih user sama dengan option_id yang benar
       if (correctMap[answer.question_id] === answer.selected_option_id) {
         correctCount++;
       }
@@ -196,7 +227,7 @@ const submitQuiz = async (req, res) => {
 
     const score = totalQuestions > 0 ? (correctCount / totalQuestions) : 0;
     const passThreshold = attempt.Quiz.pass_threshold;
-    const isPassed = score >= passThreshold;
+    const isPassed = score >= passThreshold; //
 
     // 5. Update status attempt di database
     attempt.status = 'completed';
@@ -204,17 +235,18 @@ const submitQuiz = async (req, res) => {
     attempt.completed_at = new Date();
     await attempt.save();
 
-    // (Opsional: Jika lulus kuis, otomatis tandai modul kuis selesai)
+    // 6. Jika lulus kuis, otomatis tandai modul kuis selesai (Progres)
     if (isPassed) {
       const module = await Module.findOne({ where: { quiz_id: attempt.quiz_id }});
       if (module) {
+        // Buat record di UserModuleProgress (menggunakan findOrCreate karena record harus unik)
         await db.UserModuleProgress.findOrCreate({
           where: { user_id: userId, module_id: module.id }
         });
       }
     }
 
-    // 6. Kirim hasil
+    // 7. Kirim hasil
     return res.status(200).json({
       message: 'Kuis berhasil disubmit.',
       score: score,
@@ -230,7 +262,7 @@ const submitQuiz = async (req, res) => {
 };
 
 module.exports = {
-      startOrResumeQuiz,
-      savePartialAnswer,
-      submitQuiz
-    };
+  startOrResumeQuiz,
+  savePartialAnswer,
+  submitQuiz
+};

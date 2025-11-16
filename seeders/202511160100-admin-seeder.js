@@ -2,30 +2,36 @@
 'use strict';
 const { generateCustomId } = require('../src/utils/idGenerator');
 
-// ####################################################################
-// ###           MASUKKAN SUPABASE UID ANDA DI BAWAH INI            ###
+// ====================================================================
+// === KONFIGURASI ADMIN ===
 // ####################################################################
 
+/**
+ * @const {string} ADMIN_SUPABASE_UID - ID unik yang didapat dari Supabase Auth setelah pendaftaran manual.
+ * Kunci ini menghubungkan user di Supabase dengan role 'admin' di MySQL.
+ */
 const ADMIN_SUPABASE_UID = "1ff603bd-c820-4251-a49c-f8437ec6f713";
-const ADMIN_EMAIL = "admin@lenterakarir.com"; // Ganti jika email Anda beda
+const ADMIN_EMAIL = "admin@lenterakarir.com"; // Email user yang didaftarkan di Supabase
 const ADMIN_NAME = "Admin Lentera Karir";
 
 // ####################################################################
 
 module.exports = {
+  /**
+   * Fungsi 'up' bertanggung jawab untuk menambahkan user admin ke tabel Users.
+   * Ini menggunakan 'bulkInsert' dengan opsi 'updateOnDuplicate' (upsert)
+   * untuk memastikan role 'admin' selalu diterapkan.
+   * * @param {import('sequelize').QueryInterface} queryInterface
+   * @param {import('sequelize').Sequelize} Sequelize
+   */
   async up (queryInterface, Sequelize) {
+    // Cek keamanan: Pastikan UID sudah diubah dari placeholder
     if (!ADMIN_SUPABASE_UID || ADMIN_SUPABASE_UID === "PASTE_UID_ANDA_DARI_SUPABASE_DI_SINI") {
       throw new Error("Harap masukkan ADMIN_SUPABASE_UID di file seeder/202511160100-admin-seeder.js");
     }
 
-    // Menjalankan seed akan memaksa user di MySQL
-    // menjadi 'admin' yang tertaut ke UID Supabase.
-
-    // Kita gunakan 'upsert' (update or insert)
-    // Jika user-nya sudah ada (misal sudah pernah sync), akan di-update jadi admin.
-    // Jika belum, akan dibuatkan user baru dengan role admin.
-
-    const adminUserId = generateCustomId('LT'); // Buat ID LT-XXXXXX
+    // Buat ID kustom untuk user MySQL (misal: LT-XXXXXX)
+    const adminUserId = generateCustomId('LT');
 
     await queryInterface.bulkInsert('Users', [
       {
@@ -33,19 +39,26 @@ module.exports = {
         supabase_auth_id: ADMIN_SUPABASE_UID,
         email: ADMIN_EMAIL,
         nama_lengkap: ADMIN_NAME,
-        role: 'admin', // <-- Ini adalah kuncinya
+        role: 'admin', // <-- Peran paksa (forced role) untuk user admin
         status: 'active',
         createdAt: new Date(),
         updatedAt: new Date(),
       }
     ], {
-      // Jika ada konflik (supabase_auth_id sudah ada), update role-nya
+      // Jika user sudah pernah disinkronisasi/dibuat (konflik pada supabase_auth_id),
+      // update record yang sudah ada dan pastikan 'role' di-set ke 'admin'.
       updateOnDuplicate: ['role', 'updatedAt'] 
     });
   },
 
+  /**
+   * Fungsi 'down' bertanggung jawab untuk menghapus data yang di-seed.
+   *
+   * @param {import('sequelize').QueryInterface} queryInterface
+   * @param {import('sequelize').Sequelize} Sequelize
+   */
   async down (queryInterface, Sequelize) {
-    // Hapus admin yang di-seed
+    // Hapus admin yang di-seed berdasarkan UID Supabase
     await queryInterface.bulkDelete('Users', {
       supabase_auth_id: ADMIN_SUPABASE_UID
     }, {});

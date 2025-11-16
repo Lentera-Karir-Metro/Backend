@@ -1,18 +1,32 @@
 // File: models/certificate.js
 'use strict';
 const { Model } = require('sequelize');
+// Impor helper untuk membuat ID kustom (misal: CERT-XXXXXX)
 const { generateCustomId } = require('../src/utils/idGenerator');
 
 module.exports = (sequelize, DataTypes) => {
+  /**
+   * Model Certificate
+   * Merepresentasikan sertifikat yang didapat pengguna setelah
+   * menyelesaikan sebuah Learning Path.
+   */
   class Certificate extends Model {
+    /**
+     * Helper method untuk mendefinisikan relasi.
+     * Method ini otomatis dipanggil oleh `models/index.js`.
+     * @param {object} models - Kumpulan semua model yang terdefinisi
+     */
     static associate(models) {
+      // Sebuah Sertifikat dimiliki oleh satu User
       Certificate.belongsTo(models.User, { foreignKey: 'user_id' });
+      // Sebuah Sertifikat diberikan untuk satu LearningPath
       Certificate.belongsTo(models.LearningPath, { foreignKey: 'learning_path_id' });
     }
   }
+  
   Certificate.init({
     id: {
-      type: DataTypes.STRING(16), // CERT-XXXXXX
+      type: DataTypes.STRING(16), // Sesuai spesifikasi VARCHAR(16)
       allowNull: false,
       primaryKey: true,
       unique: true,
@@ -20,14 +34,14 @@ module.exports = (sequelize, DataTypes) => {
     user_id: {
       type: DataTypes.STRING(16),
       allowNull: false,
-      references: { model: 'Users', key: 'id' },
+      references: { model: 'Users', key: 'id' }, // Relasi ke pemilik sertifikat
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
     learning_path_id: {
       type: DataTypes.STRING(16),
       allowNull: false,
-      references: { model: 'LearningPaths', key: 'id' },
+      references: { model: 'LearningPaths', key: 'id' }, // Relasi ke learning path yang diselesaikan
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
@@ -37,7 +51,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
     },
     total_hours: {
-      type: DataTypes.INTEGER, // Akumulasi SUM(estimasi_waktu_menit)
+      type: DataTypes.INTEGER, // Akumulasi (SUM) dari estimasi_waktu_menit
       allowNull: false,
     },
     certificate_url: {
@@ -47,8 +61,15 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Certificate',
-    timestamps: true, // Otomatis createdAt dan updatedAt
+    timestamps: true, // Otomatis menambah createdAt dan updatedAt
+    
+    // Definisikan 'hook' (fungsi) yang berjalan otomatis
     hooks: {
+      /**
+       * Hook 'beforeCreate' berjalan otomatis sebelum record baru disimpan ke DB.
+       * Kita gunakan untuk men-generate ID kustom (CERT-XXXXXX).
+       * @param {Certificate} certificate - Instance sertifikat yang akan dibuat
+       */
       beforeCreate: (certificate, options) => {
         certificate.id = generateCustomId('CERT'); // Prefix 'CERT'
       },

@@ -1,20 +1,33 @@
 // File: src/controllers/userManagementController.js
+/**
+ * @fileoverview Controller untuk mengelola manajemen user (Admin).
+ * Endpoint ini menangani CRUD user, nonaktifkan, reset password, dan pendaftaran manual.
+ * Membutuhkan Service Role Key Supabase untuk fungsi-fungsi sensitif.
+ */
 const { createClient } = require('@supabase/supabase-js');
 const db = require('../../models');
 const { User, UserEnrollment, LearningPath } = db;
 const { Op } = require('sequelize');
 
 // Inisialisasi Supabase Admin Client (menggunakan Service Role Key)
-// PENTING: Jangan ekspos client ini ke frontend
+// Klien ini memiliki privilege tinggi untuk memodifikasi user lain di Supabase Auth.
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// @desc    Melihat semua user (Admin)
-// @route   GET /api/v1/admin/users
+/**
+ * @function getAllUsers
+ * @description Mengambil daftar semua user (untuk panel Admin).
+ * @route GET /api/v1/admin/users
+ *
+ * @param {object} req - Objek request
+ * @param {object} res - Objek response
+ * @returns {object} Array user.
+ */
 const getAllUsers = async (req, res) => {
   try {
+    // Ambil data penting saja (hindari mengembalikan supabase_auth_id)
     const users = await User.findAll({
       attributes: ['id', 'email', 'nama_lengkap', 'role', 'status'],
       order: [['createdAt', 'DESC']],
@@ -25,8 +38,15 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// @desc    Update data user, misal nama_lengkap (Admin)
-// @route   PUT /api/v1/admin/users/:id
+/**
+ * @function updateUser
+ * @description Memperbarui data user (misal: nama_lengkap untuk sertifikat).
+ * @route PUT /api/v1/admin/users/:id
+ *
+ * @param {object} req - Objek request (params: id, body: { nama_lengkap })
+ * @param {object} res - Objek response
+ * @returns {object} User yang sudah diperbarui.
+ */
 const updateUser = async (req, res) => {
   const { id } = req.params;
   const { nama_lengkap } = req.body;
@@ -43,20 +63,29 @@ const updateUser = async (req, res) => {
   }
 };
 
-// @desc    Menonaktifkan user (Admin)
-// @route   POST /api/v1/admin/users/:id/deactivate
+/**
+ * @function deactivateUser
+ * @description Menonaktifkan user secara permanen dari login.
+ * Memerlukan sinkronisasi dua arah: Supabase Auth dan MySQL.
+ * @route POST /api/v1/admin/users/:id/deactivate
+ *
+ * @param {object} req - Objek request (params: id)
+ * @param {object} res - Objek response
+ * @returns {object} Pesan sukses.
+ */
 const deactivateUser = async (req, res) => {
-  const { id } = req.params; // Ini ID MySQL kita (LT-XXXXXX)
+  const { id } = req.params; // ID MySQL kita (LT-XXXXXX)
   try {
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: 'User tidak ditemukan.' });
     }
 
-    // 1. Nonaktifkan login di Supabase Auth
+    // 1. Nonaktifkan/ban login di Supabase Auth (wajib)
+    // Menggunakan 'inf' (indefinite) untuk ban permanen
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
       user.supabase_auth_id,
-      { ban_duration: 'inf' } // 'inf' = banned indefinitely
+      { ban_duration: 'inf' } 
     );
 
     if (error) {
@@ -64,7 +93,7 @@ const deactivateUser = async (req, res) => {
       return res.status(500).json({ message: 'Gagal menonaktifkan user di Supabase.' });
     }
 
-    // 2. Ubah status di MySQL
+    // 2. Ubah status di MySQL menjadi 'inactive'
     user.status = 'inactive';
     await user.save();
 
@@ -74,8 +103,16 @@ const deactivateUser = async (req, res) => {
   }
 };
 
-// @desc    Memicu link reset password (Admin)
-// @route   POST /api/v1/admin/users/:id/reset-password
+/**
+ * @function triggerPasswordReset
+ * @description Memicu pengiriman link reset password ke email user.
+ * Dilakukan melalui API Supabase Auth.
+ * @route POST /api/v1/admin/users/:id/reset-password
+ *
+ * @param {object} req - Objek request (params: id)
+ * @param {object} res - Objek response
+ * @returns {object} Pesan sukses.
+ */
 const triggerPasswordReset = async (req, res) => {
   const { id } = req.params;
   try {
@@ -87,8 +124,7 @@ const triggerPasswordReset = async (req, res) => {
     // Memanggil API Supabase Auth untuk mengirim email reset
     const { data, error } = await supabaseAdmin.auth.resetPasswordForEmail(
       user.email,
-      // Anda bisa tambahkan redirectTo jika frontend punya halaman reset khusus
-      // { redirectTo: 'http://localhost:3001/update-password' }
+      // Opsi untuk redirectTo dapat ditambahkan di sini
     );
 
     if (error) {
@@ -101,8 +137,15 @@ const triggerPasswordReset = async (req, res) => {
   }
 };
 
-// @desc    Mendaftarkan user ke Learning Path manual (Admin)
-// @route   POST /api/v1/admin/users/:id/enroll
+/**
+ * @function manualEnrollUser
+ * @description Mendaftarkan user ke Learning Path secara manual (tanpa melalui pembayaran).
+ * @route POST /api/v1/admin/users/:id/enroll
+ *
+ * @param {object} req - Objek request (params: id, body: { learning_path_id })
+ * @param {object} res - Objek response
+ * @returns {object} Enrollment record yang baru dibuat.
+ */
 const manualEnrollUser = async (req, res) => {
   const { id } = req.params; // User ID (LT-XXXXXX)
   const { learning_path_id } = req.body; // Learning Path ID (LP-XXXXXX)
@@ -112,7 +155,7 @@ const manualEnrollUser = async (req, res) => {
   }
 
   try {
-    // Pastikan user dan learning path ada
+    // 1. Pastikan user dan learning path ada
     const user = await User.findByPk(id);
     const learningPath = await LearningPath.findByPk(learning_path_id);
 
@@ -120,16 +163,16 @@ const manualEnrollUser = async (req, res) => {
       return res.status(404).json({ message: 'User atau Learning Path tidak ditemukan.' });
     }
 
-    // Daftarkan user
+    // 2. Daftarkan user menggunakan findOrCreate
     const [enrollment, created] = await UserEnrollment.findOrCreate({
       where: { 
         user_id: user.id, 
         learning_path_id: learningPath.id 
       },
       defaults: {
-        status: 'success',
+        status: 'success', // Langsung set status sukses
         enrolled_at: new Date(),
-        midtrans_transaction_id: 'MANUAL_BY_ADMIN'
+        midtrans_transaction_id: 'MANUAL_BY_ADMIN' // Penanda bahwa ini bukan transaksi Midtrans
       }
     });
 

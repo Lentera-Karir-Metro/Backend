@@ -1,14 +1,25 @@
 // File: src/controllers/paymentController.js
+/**
+ * @fileoverview Controller untuk mengelola inisiasi pembayaran (Checkout)
+ * dengan Midtrans Snap. Endpoint ini diakses oleh User yang sudah login.
+ */
 const db = require('../../models');
-const { LearningPath, User, UserEnrollment } = db;
-const { snap } = require('../utils/midtransClient'); // Impor 'snap'
-const { generateCustomId } = require('../utils/idGenerator');
+const { LearningPath, UserEnrollment } = db;
+const { snap } = require('../utils/midtransClient'); // Impor Midtrans Snap Client
+const { generateCustomId } = require('../utils/idGenerator'); // Impor helper ID kustom
 
-// @desc    Membuat sesi checkout Midtrans
-// @route   POST /api/v1/payments/checkout
+/**
+ * @function createCheckoutSession
+ * @description Membuat sesi checkout Midtrans dan menyiapkan record UserEnrollment dengan status 'pending'.
+ * @route POST /api/v1/payments/checkout
+ *
+ * @param {object} req - Objek request (body: { learning_path_id }, req.user disediakan oleh middleware protect)
+ * @param {object} res - Objek response
+ * @returns {object} Respon Midtrans Snap token dan URL redirect.
+ */
 const createCheckoutSession = async (req, res) => {
   const { learning_path_id } = req.body;
-  // req.user didapat dari middleware 'protect'
+  // Ambil data User dari token (disediakan oleh middleware 'protect')
   const userId = req.user.id; 
   const userEmail = req.user.email;
   const userNama = req.user.nama_lengkap;
@@ -18,7 +29,7 @@ const createCheckoutSession = async (req, res) => {
   }
 
   try {
-    // 1. Cek apakah Learning Path ada dan ambil harganya
+    // 1. Cek Learning Path & Harga
     const learningPath = await LearningPath.findByPk(learning_path_id);
     if (!learningPath) {
       return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
@@ -27,7 +38,7 @@ const createCheckoutSession = async (req, res) => {
       return res.status(400).json({ message: 'Learning Path ini gratis (atau harga belum di-set).' });
     }
 
-    // 2. Cek apakah user sudah terdaftar
+    // 2. Cek apakah user sudah terdaftar dan sukses
     const existingEnrollment = await UserEnrollment.findOne({
       where: { user_id: userId, learning_path_id: learningPath.id }
     });
@@ -36,17 +47,19 @@ const createCheckoutSession = async (req, res) => {
       return res.status(409).json({ message: 'Anda sudah terdaftar di learning path ini.' });
     }
 
-    // 3. Buat 'order_id' unik untuk Midtrans
-    const orderId = `LENTERA-${generateCustomId('TRX')}`;
+    // 3. Buat 'order_id' unik (midtrans transaction ID)
+    const orderId = `LENTERA-${generateCustomId('TRX')}`; // Gunakan prefix + ID kustom
 
     // 4. Buat record 'UserEnrollment' dengan status 'pending'
-    // atau update jika sudah ada tapi gagal/pending
     let enrollment;
     if (existingEnrollment) {
+      // Jika sudah ada (misal status 'failed' atau 'pending' lama), update
       enrollment = existingEnrollment;
-      enrollment.midtrans_transaction_id = orderId; // Update order ID baru
+      enrollment.midtrans_transaction_id = orderId; 
       enrollment.status = 'pending';
+      await enrollment.save();
     } else {
+      // Jika belum ada, buat baru
       enrollment = await UserEnrollment.create({
         user_id: userId,
         learning_path_id: learningPath.id,
@@ -72,9 +85,10 @@ const createCheckoutSession = async (req, res) => {
         email: userEmail,
       },
       // 6. SISIPKAN METADATA (SANGAT PENTING!)
+      // Webhook Midtrans akan menggunakan metadata ini untuk meng-enroll user
       metadata: {
-        user_id: userId, // ID MySQL kita (LT-XXXXXX)
-        learning_path_id: learningPath.id, // ID LP (LP-XXXXXX)
+        user_id: userId, 
+        learning_path_id: learningPath.id,
       }
     };
 

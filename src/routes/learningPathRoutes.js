@@ -1,8 +1,13 @@
 // File: src/routes/learningPathRoutes.js
+/**
+ * @fileoverview Definisi rute untuk manajemen CRUD entitas LearningPath.
+ * Semua rute dalam file ini dilindungi dan hanya dapat diakses oleh Admin.
+ * Rute diakses dengan prefix /api/v1/admin/learning-paths.
+ */
 const express = require('express');
 const router = express.Router();
 
-// Impor controller
+// Impor semua fungsi controller untuk Learning Path
 const {
   createLearningPath,
   getAllLearningPaths,
@@ -11,23 +16,35 @@ const {
   deleteLearningPath,
 } = require('../controllers/learningPathController');
 
-// Impor middleware
+// Impor middleware otorisasi dan otentikasi
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
 
-// Lindungi semua rute di file ini dengan middleware protect dan isAdmin
-// Semua request ke /api/v1/admin/learning-paths/... 
-// HARUS menyertakan token admin yang valid.
+// --- Pemasangan Middleware Global ---
+/**
+ * Lindungi SEMUA rute yang didefinisikan di bawah ini.
+ * Setiap request HARUS memiliki token yang valid (protect) 
+ * dan role-nya harus 'admin' (isAdmin).
+ */
 router.use(protect);
 router.use(isAdmin);
 
-// Definisikan rute
-router.route('/')
-  .post(createLearningPath)
-  .get(getAllLearningPaths);
+// --- Definisi Rute ---
 
+/**
+ * @route /
+ * @description Rute utama untuk membuat dan mengambil semua Learning Path.
+ */
+router.route('/')
+  .post(createLearningPath) // POST /api/v1/admin/learning-paths (Create)
+  .get(getAllLearningPaths);  // GET /api/v1/admin/learning-paths (Read All)
+
+/**
+ * @route /:id
+ * @description Rute untuk operasi spesifik 1 Learning Path.
+ */
 router.route('/:id')
-  .get(getLearningPathById)
-  .put(updateLearningPath)
-  .delete(deleteLearningPath);
+  .get(getLearningPathById)    // GET /api/v1/admin/learning-paths/:id (Read One & Kurikulum)
+  .put(updateLearningPath)     // PUT /api/v1/admin/learning-paths/:id (Update)
+  .delete(deleteLearningPath);  // DELETE /api/v1/admin/learning-paths/:id (Delete)
 
 module.exports = router;

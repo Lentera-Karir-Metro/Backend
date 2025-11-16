@@ -1,8 +1,13 @@
 // File: src/routes/courseModuleRoutes.js
+/**
+ * @fileoverview Definisi rute untuk manajemen konten Learning Path (Course dan Module).
+ * Semua rute dalam file ini dilindungi dan hanya dapat diakses oleh Admin.
+ * Rute diakses dengan prefix /api/v1/admin.
+ */
 const express = require('express');
 const router = express.Router();
 
-// Impor controller
+// Impor controller untuk Course
 const {
   createCourse,
   updateCourse,
@@ -10,6 +15,7 @@ const {
   reorderCourses
 } = require('../controllers/courseController');
 
+// Impor controller untuk Module
 const {
   createModule,
   updateModule,
@@ -17,38 +23,75 @@ const {
   reorderModules
 } = require('../controllers/moduleController');
 
-// Impor middleware
+// Impor middleware otorisasi
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
 
-// Lindungi semua rute di file ini dengan middleware admin
+// --- Pemasangan Middleware Global ---
+/**
+ * Lindungi SEMUA rute yang didefinisikan di bawah ini.
+ * User harus login (protect) dan memiliki role 'admin' (isAdmin).
+ */
 router.use(protect);
 router.use(isAdmin);
 
 // --- Rute untuk Course ---
 
-// POST /api/v1/admin/learning-paths/:lp_id/courses
+/**
+ * @method POST
+ * @route /learning-paths/:lp_id/courses
+ * @description Membuat Course baru di dalam Learning Path tertentu.
+ */
 router.post('/learning-paths/:lp_id/courses', createCourse);
 
-// POST /api/v1/admin/learning-paths/:lp_id/reorder-courses
+/**
+ * @method POST
+ * @route /learning-paths/:lp_id/reorder-courses
+ * @description Memperbarui urutan (sequence_order) Course (fitur drag-and-drop Admin).
+ */
 router.post('/learning-paths/:lp_id/reorder-courses', reorderCourses);
 
-// PUT /api/v1/admin/courses/:id
+/**
+ * @method PUT
+ * @route /courses/:id
+ * @description Memperbarui detail Course.
+ */
 router.put('/courses/:id', updateCourse);
 
-// DELETE /api/v1/admin/courses/:id
+/**
+ * @method DELETE
+ * @route /courses/:id
+ * @description Menghapus Course (CASCADE DELETE ke semua Modul di dalamnya).
+ */
 router.delete('/courses/:id', deleteCourse);
 
-// --- Rute untuk Module (Akan kita tambahkan di Langkah 22) ---
-//POST /api/v1/admin/courses/:course_id/modules
+// --- Rute untuk Module ---
+
+/**
+ * @method POST
+ * @route /courses/:course_id/modules
+ * @description Membuat Module baru di dalam Course tertentu.
+ */
 router.post('/courses/:course_id/modules', createModule);
 
-// POST /api/v1/admin/courses/:course_id/reorder-modules
+/**
+ * @method POST
+ * @route /courses/:course_id/reorder-modules
+ * @description Memperbarui urutan (sequence_order) Module (fitur drag-and-drop Admin).
+ */
 router.post('/courses/:course_id/reorder-modules', reorderModules);
 
-// PUT /api/v1/admin/modules/:id
+/**
+ * @method PUT
+ * @route /modules/:id
+ * @description Memperbarui detail Module.
+ */
 router.put('/modules/:id', updateModule);
 
-// DELETE /api/v1/admin/modules/:id
+/**
+ * @method DELETE
+ * @route /modules/:id
+ * @description Menghapus Module.
+ */
 router.delete('/modules/:id', deleteModule);
 
 module.exports = router;
