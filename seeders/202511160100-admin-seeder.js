@@ -10,9 +10,9 @@ const { generateCustomId } = require('../src/utils/idGenerator');
  * @const {string} ADMIN_SUPABASE_UID - ID unik yang didapat dari Supabase Auth setelah pendaftaran manual.
  * Kunci ini menghubungkan user di Supabase dengan role 'admin' di MySQL.
  */
-const ADMIN_SUPABASE_UID = "1ff603bd-c820-4251-a49c-f8437ec6f713";
-const ADMIN_EMAIL = "admin@lenterakarir.com"; // Email user yang didaftarkan di Supabase
-const ADMIN_NAME = "Admin Lentera Karir";
+const ADMIN_SUPABASE_UID = "1dcef0f9-f66f-41c3-b6ec-04dabcef4852";
+const ADMIN_EMAIL = "daffaraelanaqiali30@gmail.com"; // Email user yang didaftarkan di Supabase
+const ADMIN_NAME = "Admin Daffarael";
 
 // ####################################################################
 
