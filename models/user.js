@@ -2,7 +2,7 @@
 'use strict';
 const { Model } = require('sequelize');
 // Impor helper untuk membuat ID kustom (misal: LT-XXXXXX)
-const { generateCustomId } = require('../src/utils/idGenerator'); 
+const { generateCustomId } = require('../src/utils/idGenerator');
 
 module.exports = (sequelize, DataTypes) => {
   /**

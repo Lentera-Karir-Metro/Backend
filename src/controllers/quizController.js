@@ -1,10 +1,10 @@
-// File: src/controllers/quizController.js
 /**
  * @fileoverview Controller untuk mengelola CRUD (Create, Read, Update, Delete) Quiz Engine.
  * Meliputi Quiz (Master), Question, dan Option. Controller ini diakses khusus oleh Admin.
  */
 const db = require('../../models');
-const { Quiz, Question, Option } = db; // Import model yang diperlukan
+const { Quiz, Question, Option } = db;
+const { generateCustomId } = require('../utils/idGenerator');
 
 // --- Controller untuk QUIZ (MASTER) ---
 
@@ -20,10 +20,9 @@ const { Quiz, Question, Option } = db; // Import model yang diperlukan
 const createQuiz = async (req, res) => {
   const { title, pass_threshold } = req.body;
   try {
-    // Buat Quiz baru, ID kustom (QZ-XXXXXX) digenerate secara otomatis oleh hook.
     const quiz = await Quiz.create({
+      id: generateCustomId('QZ'),
       title,
-      // Default threshold 0.75 (75%) jika tidak dikirim
       pass_threshold: pass_threshold || 0.75, 
     });
     return res.status(201).json(quiz);
@@ -64,7 +63,6 @@ const getAllQuizzes = async (req, res) => {
  */
 const getQuizById = async (req, res) => {
   try {
-    // Gunakan nested include untuk mengambil Question dan Option terkait
     const quiz = await Quiz.findByPk(req.params.id, {
       include: {
         model: Question,
@@ -126,7 +124,6 @@ const deleteQuiz = async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz tidak ditemukan.' });
     }
-    // Hapus Quiz. Ini memicu CASCADE DELETE pada Question/Option dan SET NULL pada Module.
     await quiz.destroy();
     return res.status(200).json({ message: 'Quiz berhasil dihapus.' });
   } catch (err) {
@@ -154,7 +151,8 @@ const addQuestionToQuiz = async (req, res) => {
       return res.status(404).json({ message: 'Quiz tidak ditemukan.' });
     }
     const question = await Question.create({
-      quiz_id: quiz_id, // Tautkan Pertanyaan ke Quiz master
+      id: generateCustomId('QN'),
+      quiz_id: quiz_id,
       question_text,
     });
     return res.status(201).json(question);
@@ -202,7 +200,6 @@ const deleteQuestion = async (req, res) => {
     if (!question) {
       return res.status(404).json({ message: 'Pertanyaan tidak ditemukan.' });
     }
-    // Hapus Pertanyaan. Ini memicu CASCADE DELETE pada Opsi di dalamnya.
     await question.destroy();
     return res.status(200).json({ message: 'Pertanyaan berhasil dihapus.' });
   } catch (err) {
@@ -230,7 +227,8 @@ const addOptionToQuestion = async (req, res) => {
       return res.status(404).json({ message: 'Pertanyaan tidak ditemukan.' });
     }
     const option = await Option.create({
-      question_id: question_id, // Tautkan Opsi ke Pertanyaan
+      id: generateCustomId('OP'),
+      question_id: question_id,
       option_text,
       is_correct: is_correct || false,
     });
@@ -257,7 +255,6 @@ const updateOption = async (req, res) => {
       return res.status(404).json({ message: 'Opsi tidak ditemukan.' });
     }
     option.option_text = option_text || option.option_text;
-    // Cek secara eksplisit apakah is_correct disetel (karena nilai boolean bisa false)
     option.is_correct = is_correct !== undefined ? is_correct : option.is_correct; 
     await option.save();
     return res.status(200).json(option);

@@ -1,4 +1,3 @@
-// File: src/controllers/moduleController.js
 /**
  * @fileoverview Controller untuk mengelola CRUD (Create, Read, Update, Delete) entitas Module.
  * Controller ini diakses khusus oleh Admin.
@@ -6,8 +5,8 @@
 const db = require('../../models');
 const Module = db.Module;
 const Course = db.Course;
-// Impor sequelize untuk menjalankan transaksi database (diperlukan untuk reordering)
-const { sequelize } = require('../../models'); 
+const { sequelize } = require('../../models');
+const { generateCustomId } = require('../utils/idGenerator');
 
 /**
  * @function createModule
@@ -22,20 +21,18 @@ const createModule = async (req, res) => {
   const { course_id } = req.params;
   const {
     title,
-    module_type, // 'video', 'ebook', 'quiz'
+    module_type,
     video_url,
     ebook_url,
     quiz_id,
-    durasi_video_menit, //
-    estimasi_waktu_menit, //
+    durasi_video_menit,
+    estimasi_waktu_menit,
   } = req.body;
 
-  // 1. Validasi Input Wajib
   if (!title || !module_type || !estimasi_waktu_menit) {
     return res.status(400).json({ message: 'Title, Module Type, dan Estimasi Waktu wajib diisi.' });
   }
 
-  // 2. Validasi Konten berdasarkan Tipe
   if (module_type === 'video' && !video_url) {
      return res.status(400).json({ message: 'Video URL wajib diisi untuk modul video.' });
   }
@@ -45,13 +42,11 @@ const createModule = async (req, res) => {
   }
 
   try {
-    // 3. Cek apakah course-nya ada
     const course = await Course.findByPk(course_id);
     if (!course) {
       return res.status(404).json({ message: 'Course tidak ditemukan.' });
     }
 
-    // 4. Hitung sequence_order berikutnya
     const lastModule = await Module.findOne({
       where: { course_id: course_id },
       order: [['sequence_order', 'DESC']],
@@ -59,18 +54,17 @@ const createModule = async (req, res) => {
 
     const nextOrder = lastModule ? lastModule.sequence_order + 1 : 1;
 
-    // 5. Buat Module baru
     const newModule = await Module.create({
+      id: generateCustomId('MD'),
       course_id: course_id,
       title,
       module_type,
       sequence_order: nextOrder,
-      // Conditional assignment berdasarkan tipe
       video_url: module_type === 'video' ? video_url : null,
       ebook_url: module_type === 'ebook' ? ebook_url : null,
-      quiz_id: module_type === 'quiz' ? quiz_id : null, // FK ke tabel Quiz
+      quiz_id: module_type === 'quiz' ? quiz_id : null,
       durasi_video_menit: durasi_video_menit || null,
-      estimasi_waktu_menit: parseInt(estimasi_waktu_menit), // Wajib diisi (untuk kalkulasi total jam sertifikat)
+      estimasi_waktu_menit: parseInt(estimasi_waktu_menit),
     });
 
     return res.status(201).json(newModule);
@@ -107,7 +101,6 @@ const updateModule = async (req, res) => {
       return res.status(404).json({ message: 'Module tidak ditemukan.' });
     }
     
-    // Update data dan reset field yang tidak relevan jika tipe berubah
     module.title = title || module.title;
     module.module_type = module_type || module.module_type;
     
@@ -141,7 +134,6 @@ const deleteModule = async (req, res) => {
       return res.status(404).json({ message: 'Module tidak ditemukan.' });
     }
 
-    // Hapus Module. Ini akan memicu CASCADE DELETE pada progres user terkait.
     await module.destroy(); 
     return res.status(200).json({ message: 'Module berhasil dihapus.' });
   } catch (err) {
@@ -161,40 +153,34 @@ const deleteModule = async (req, res) => {
  */
 const reorderModules = async (req, res) => {
   const { course_id } = req.params;
-  const { module_ids } = req.body; // Menerima array ID kustom Module
+  const { module_ids } = req.body;
 
   if (!Array.isArray(module_ids) || module_ids.length === 0) {
     return res.status(400).json({ message: 'module_ids harus berupa array.' });
   }
 
-  // Mulai transaksi database untuk menjamin integritas data
   const t = await sequelize.transaction();
 
   try {
-    // 1. Buat array Promise untuk update sequence_order setiap Module
     const updatePromises = module_ids.map((id, index) => {
       return Module.update(
-        { sequence_order: index + 1 }, // Set urutan baru berdasarkan index array (+1)
+        { sequence_order: index + 1 },
         { 
           where: { 
             id: id,
-            course_id: course_id // Pastikan Module tersebut memang milik Course ini
+            course_id: course_id
           },
           transaction: t,
         }
       );
     });
 
-    // 2. Tunggu semua operasi update selesai
     await Promise.all(updatePromises);
-
-    // 3. Konfirmasi (commit) transaksi
     await t.commit();
 
     return res.status(200).json({ message: 'Urutan modul berhasil diperbarui.' });
 
   } catch (err) {
-    // Batalkan (rollback) transaksi jika ada error
     await t.rollback();
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }

@@ -1,7 +1,7 @@
-// File: src/controllers/authController.js
 const { createClient } = require('@supabase/supabase-js');
-const db = require('../../models'); // Panggil model dari root
+const db = require('../../models');
 const User = db.User;
+const { generateCustomId } = require('../utils/idGenerator');
 
 // Inisialisasi Supabase Client (menggunakan key ANON publik dari .env)
 const supabase = createClient(
@@ -48,17 +48,15 @@ const syncUser = async (req, res) => {
 
     // 4. Jika user TIDAK ADA di MySQL, buat record baru
     if (!user) {
-      // Ambil nama dari metadata atau fallback ke email
       const namaLengkap = supabaseUser.user_metadata.nama_lengkap || 
                           supabaseUser.user_metadata.username || 
                           supabaseUser.email;
 
-      // User.create akan memicu Hook 'beforeCreate' untuk men-generate ID LT-XXXXXX
       user = await User.create({
+        id: generateCustomId('LT'),
         supabase_auth_id: supabaseAuthId,
         email: supabaseUser.email,
         nama_lengkap: namaLengkap,
-        // role akan otomatis di-set ke 'user' oleh model
       });
     }
 
@@ -66,7 +64,7 @@ const syncUser = async (req, res) => {
     return res.status(200).json({
       message: 'Sinkronisasi berhasil.',
       user: {
-        id: user.id, // ID kustom (LT-XXXXXX)
+        id: user.id,
         email: user.email,
         nama_lengkap: user.nama_lengkap,
         role: user.role

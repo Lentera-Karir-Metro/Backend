@@ -1,4 +1,3 @@
-// File: src/controllers/courseController.js
 /**
  * @fileoverview Controller untuk mengelola entitas Course (CRUD dan reordering).
  * Controller ini hanya diakses oleh Admin.
@@ -6,8 +5,8 @@
 const db = require('../../models');
 const Course = db.Course;
 const LearningPath = db.LearningPath;
-// Impor sequelize untuk menjalankan transaksi database (diperlukan untuk reordering)
-const { sequelize } = require('../../models'); 
+const { sequelize } = require('../../models');
+const { generateCustomId } = require('../utils/idGenerator');
 
 /**
  * @function createCourse
@@ -20,7 +19,7 @@ const { sequelize } = require('../../models');
  */
 const createCourse = async (req, res) => {
   const { title, description } = req.body;
-  const { lp_id } = req.params; // Ambil ID learning path dari URL
+  const { lp_id } = req.params;
 
   if (!title) {
     return res.status(400).json({ message: 'Title wajib diisi.' });
@@ -39,11 +38,11 @@ const createCourse = async (req, res) => {
       order: [['sequence_order', 'DESC']],
     });
 
-    // Tentukan order baru: 1 jika belum ada course, atau +1 dari order terakhir
     const nextOrder = lastCourse ? lastCourse.sequence_order + 1 : 1;
 
-    // 3. Buat Course
+    // 3. Buat Course dengan ID custom
     const newCourse = await Course.create({
+      id: generateCustomId('CR'),
       learning_path_id: lp_id,
       title,
       description: description || null,
@@ -119,40 +118,34 @@ const deleteCourse = async (req, res) => {
  */
 const reorderCourses = async (req, res) => {
   const { lp_id } = req.params;
-  const { course_ids } = req.body; // Menerima array ID kustom Course
+  const { course_ids } = req.body;
 
   if (!Array.isArray(course_ids) || course_ids.length === 0) {
     return res.status(400).json({ message: 'course_ids harus berupa array.' });
   }
 
-  // Mulai transaksi database untuk memastikan semua update berhasil atau tidak sama sekali
   const t = await sequelize.transaction(); 
 
   try {
-    // 1. Buat array Promise untuk update sequence_order setiap Course
     const updatePromises = course_ids.map((id, index) => {
       return Course.update(
-        { sequence_order: index + 1 }, // Set urutan baru berdasarkan index array (+1)
+        { sequence_order: index + 1 },
         { 
           where: { 
             id: id,
-            learning_path_id: lp_id // Pastikan Course tersebut memang milik Learning Path ini
+            learning_path_id: lp_id
           },
-          transaction: t, // Jalankan dalam transaksi
+          transaction: t,
         }
       );
     });
 
-    // 2. Tunggu semua operasi update selesai
     await Promise.all(updatePromises); 
-
-    // 3. Konfirmasi (commit) transaksi
     await t.commit(); 
 
     return res.status(200).json({ message: 'Urutan course berhasil diperbarui.' });
 
   } catch (err) {
-    // Batalkan (rollback) transaksi jika ada error
     await t.rollback(); 
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
