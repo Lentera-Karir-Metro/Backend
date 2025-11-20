@@ -48,7 +48,7 @@ const syncUser = async (req, res) => {
 
     // 4. Jika user TIDAK ADA di MySQL, buat record baru
     if (!user) {
-      const namaLengkap = supabaseUser.user_metadata.nama_lengkap || 
+      const usernameInput = supabaseUser.user_metadata.username || 
                           supabaseUser.user_metadata.username || 
                           supabaseUser.email;
 
@@ -56,7 +56,7 @@ const syncUser = async (req, res) => {
         id: generateCustomId('LT'),
         supabase_auth_id: supabaseAuthId,
         email: supabaseUser.email,
-        nama_lengkap: namaLengkap,
+        username: usernameInput,
       });
     }
 
@@ -66,7 +66,7 @@ const syncUser = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        nama_lengkap: user.nama_lengkap,
+        username: user.username,
         role: user.role
       }
     });

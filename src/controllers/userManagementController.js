@@ -7,6 +7,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const db = require('../../models');
 const { User, UserEnrollment, LearningPath } = db;
+const { generateCustomId } = require('../utils/idGenerator');
 const { Op } = require('sequelize');
 
 // Inisialisasi Supabase Admin Client (menggunakan Service Role Key)
@@ -29,7 +30,7 @@ const getAllUsers = async (req, res) => {
   try {
     // Ambil data penting saja (hindari mengembalikan supabase_auth_id)
     const users = await User.findAll({
-      attributes: ['id', 'email', 'nama_lengkap', 'role', 'status'],
+      attributes: ['id', 'email', 'username', 'role', 'status'],
       order: [['createdAt', 'DESC']],
     });
     return res.status(200).json(users);
@@ -40,22 +41,22 @@ const getAllUsers = async (req, res) => {
 
 /**
  * @function updateUser
- * @description Memperbarui data user (misal: nama_lengkap untuk sertifikat).
+ * @description Memperbarui data user (misal: username untuk sertifikat).
  * @route PUT /api/v1/admin/users/:id
  *
- * @param {object} req - Objek request (params: id, body: { nama_lengkap })
+ * @param {object} req - Objek request (params: id, body: { username })
  * @param {object} res - Objek response
  * @returns {object} User yang sudah diperbarui.
  */
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { nama_lengkap } = req.body;
+  const { username } = req.body;
   try {
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: 'User tidak ditemukan.' });
     }
-    user.nama_lengkap = nama_lengkap || user.nama_lengkap;
+    user.username = username || user.username;
     await user.save();
     return res.status(200).json(user);
   } catch (err) {
@@ -163,13 +164,14 @@ const manualEnrollUser = async (req, res) => {
       return res.status(404).json({ message: 'User atau Learning Path tidak ditemukan.' });
     }
 
-    // 2. Daftarkan user menggunakan findOrCreate
+    // 2. Daftarkan user menggunakan findOrCreate (pastikan id ter-generate)
     const [enrollment, created] = await UserEnrollment.findOrCreate({
       where: { 
         user_id: user.id, 
         learning_path_id: learningPath.id 
       },
       defaults: {
+        id: generateCustomId('EN'),
         status: 'success', // Langsung set status sukses
         enrolled_at: new Date(),
         midtrans_transaction_id: 'MANUAL_BY_ADMIN' // Penanda bahwa ini bukan transaksi Midtrans

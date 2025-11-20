@@ -7,7 +7,6 @@ const { Quiz, Question, Option } = db;
 const { generateCustomId } = require('../utils/idGenerator');
 
 // --- Controller untuk QUIZ (MASTER) ---
-
 /**
  * @function createQuiz
  * @description Membuat entitas Quiz baru.

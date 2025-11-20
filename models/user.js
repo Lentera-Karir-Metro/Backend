@@ -66,7 +66,7 @@ module.exports = (sequelize, DataTypes) => {
       unique: true,
       validate: { isEmail: true }, // Validasi format email
     },
-    nama_lengkap: {
+    username: {
       type: DataTypes.STRING,
       allowNull: false, // Diambil dari 'username' Supabase saat sinkronisasi
     },

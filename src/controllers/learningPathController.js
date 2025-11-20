@@ -1,3 +1,4 @@
+// File: src/controllers/learningPathController.js
 /**
  * @fileoverview Controller untuk mengelola CRUD (Create, Read, Update, Delete) entitas LearningPath.
  * Controller ini diakses khusus oleh Admin.
@@ -5,7 +6,7 @@
 const db = require('../../models');
 const LearningPath = db.LearningPath;
 const Course = db.Course; 
-const Module = db.Module;
+const Module = db.Module; // Tambahkan import Module untuk nested include
 const { generateCustomId } = require('../utils/idGenerator');
 
 /**
@@ -29,9 +30,9 @@ const createLearningPath = async (req, res) => {
     const newLearningPath = await LearningPath.create({
       id: generateCustomId('LP'), // Generate ID custom (LP-XXXXXX)
       title,
-      description: description || null,
-      price: parseFloat(price),
-      thumbnail_url: thumbnail_url || null,
+      description: description || null, // Nilai default null jika tidak dikirim
+      price: parseFloat(price), // Pastikan harga di-parse sebagai float
+      thumbnail_url: thumbnail_url || null, // URL gambar disimpan (dari Supabase Storage)
     });
     return res.status(201).json(newLearningPath);
   } catch (err) {
@@ -52,6 +53,7 @@ const createLearningPath = async (req, res) => {
 const getAllLearningPaths = async (req, res) => {
   try {
     const learningPaths = await LearningPath.findAll({
+      // Urutkan berdasarkan data terbaru (paling atas)
       order: [['createdAt', 'DESC']], 
     });
     return res.status(200).json(learningPaths);
@@ -72,15 +74,17 @@ const getAllLearningPaths = async (req, res) => {
 const getLearningPathById = async (req, res) => {
   try {
     const learningPath = await LearningPath.findByPk(req.params.id, {
+      // Mengambil data relasi (Course dan Modul) secara bersarang (nested include)
       include: {
         model: Course,
         as: 'courses',
         include: {
-          model: db.Module,
+          model: db.Module, // Ambil juga modulnya
           as: 'modules',
         },
       },
       order: [
+        // Urutkan Course dan Module berdasarkan sequence_order (sesuai drag-and-drop admin)
         [{ model: Course, as: 'courses' }, 'sequence_order', 'ASC'],
         [{ model: Course, as: 'courses' }, { model: db.Module, as: 'modules' }, 'sequence_order', 'ASC']
       ]
@@ -112,8 +116,10 @@ const updateLearningPath = async (req, res) => {
       return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
     }
 
+    // Update data hanya jika nilai baru disediakan
     learningPath.title = title || learningPath.title;
     learningPath.description = description || learningPath.description;
+    // Perlu cek 'undefined' karena price bisa 0
     learningPath.price = price !== undefined ? parseFloat(price) : learningPath.price; 
     learningPath.thumbnail_url = thumbnail_url || learningPath.thumbnail_url;
 
@@ -140,6 +146,7 @@ const deleteLearningPath = async (req, res) => {
       return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
     }
 
+    // Hapus Learning Path. Ini akan memicu CASCADE DELETE di Course, Module, dll.
     await learningPath.destroy(); 
     return res.status(200).json({ message: 'Learning Path berhasil dihapus.' });
   } catch (err) {

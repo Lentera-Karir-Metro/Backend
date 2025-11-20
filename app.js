@@ -25,6 +25,32 @@ app.get('/api/v1/test', (req, res) => {
   });
 });
 
+// 4b. Debug Route (Untuk mengecek status Midtrans & Environment)
+app.get('/api/v1/debug/config', (req, res) => {
+  // Hanya tampilkan di development
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  
+  const midtransServerKey = process.env.MIDTRANS_SERVER_KEY ? '✓ Set' : '✗ Not Set';
+  const midtransClientKey = process.env.MIDTRANS_CLIENT_KEY ? '✓ Set' : '✗ Not Set';
+  const midtransIsProduction = process.env.MIDTRANS_IS_PRODUCTION || 'false';
+  const dbName = process.env.DB_NAME || 'unknown';
+  
+  return res.status(200).json({
+    message: 'Debug Info',
+    midtrans: {
+      serverKey: midtransServerKey,
+      clientKey: midtransClientKey,
+      isProduction: midtransIsProduction
+    },
+    database: {
+      name: dbName
+    },
+    nodeEnv: process.env.NODE_ENV || 'development'
+  });
+});
+
 // 5. Pasang Routes (Semua route menggunakan prefix umum /api/v1)
 
 // --- A. Otentikasi ---

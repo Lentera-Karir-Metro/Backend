@@ -5,7 +5,7 @@
  */
 const db = require('../../models');
 const { LearningPath, UserEnrollment } = db;
-const { snap } = require('../utils/midtransClient'); // Impor Midtrans Snap Client
+const { createSnapTransaction } = require('../utils/midtransClient'); // Impor wrapper Midtrans Snap Client
 const { generateCustomId } = require('../utils/idGenerator'); // Impor helper ID kustom
 
 /**
@@ -22,7 +22,7 @@ const createCheckoutSession = async (req, res) => {
   // Ambil data User dari token (disediakan oleh middleware 'protect')
   const userId = req.user.id; 
   const userEmail = req.user.email;
-  const userNama = req.user.nama_lengkap;
+  const userNama = req.user.username;
 
   if (!learning_path_id) {
     return res.status(400).json({ message: 'Learning Path ID wajib diisi.' });
@@ -59,8 +59,9 @@ const createCheckoutSession = async (req, res) => {
       enrollment.status = 'pending';
       await enrollment.save();
     } else {
-      // Jika belum ada, buat baru
+      // Jika belum ada, buat baru (set id custom agar hook tidak bergantung)
       enrollment = await UserEnrollment.create({
+        id: generateCustomId('EN'),
         user_id: userId,
         learning_path_id: learningPath.id,
         midtrans_transaction_id: orderId,
@@ -93,7 +94,7 @@ const createCheckoutSession = async (req, res) => {
     };
 
     // 7. Dapatkan token/URL Snap dari Midtrans
-    const transaction = await snap.createTransaction(transactionDetails);
+    const transaction = await createSnapTransaction(transactionDetails);
 
     // 8. Kirim respon ke frontend
     return res.status(201).json({

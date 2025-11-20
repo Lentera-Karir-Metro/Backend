@@ -12,7 +12,7 @@ const { generateCustomId } = require('../src/utils/idGenerator');
  */
 const ADMIN_SUPABASE_UID = "1dcef0f9-f66f-41c3-b6ec-04dabcef4852";
 const ADMIN_EMAIL = "daffaraelanaqiali30@gmail.com"; // Email user yang didaftarkan di Supabase
-const ADMIN_NAME = "Admin Daffarael";
+const ADMIN_USERNAME = "Admin Daffarael";
 
 // ####################################################################
 
@@ -38,7 +38,7 @@ module.exports = {
         id: adminUserId,
         supabase_auth_id: ADMIN_SUPABASE_UID,
         email: ADMIN_EMAIL,
-        nama_lengkap: ADMIN_NAME,
+        username: ADMIN_USERNAME,
         role: 'admin', // <-- Peran paksa (forced role) untuk user admin
         status: 'active',
         createdAt: new Date(),

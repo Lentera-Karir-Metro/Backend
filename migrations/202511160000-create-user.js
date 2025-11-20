@@ -32,7 +32,7 @@ module.exports = {
         allowNull: false,
         unique: true,
       },
-      nama_lengkap: {
+      username: {
         type: Sequelize.STRING,
         allowNull: false, // Diambil dari 'username' saat sinkronisasi
       },

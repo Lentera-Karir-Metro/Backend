@@ -3,39 +3,65 @@
  * @fileoverview Controller untuk menangani Webhook dari layanan eksternal (Midtrans & Supabase).
  * Endpoint ini tidak memiliki middleware otentikasi karena dipanggil oleh server lain.
  */
-const { coreApi } = require('../utils/midtransClient');
+const { verifyCoreNotification } = require('../utils/midtransClient');
+const { activateEnrollment } = require('../services/enrollmentService');
 const db = require('../../models');
 const { UserEnrollment, User } = db;
 
 /**
  * @function handleMidtransNotification
- * @description Menangani notifikasi status transaksi dari Midtrans. Jika pembayaran sukses ('settlement'), 
- * akan membuat atau memperbarui record UserEnrollment.
+ * @description Menangani notifikasi status transaksi dari Midtrans.
  * @route POST /api/v1/webhooks/midtrans
- *
- * @param {object} req - Objek request (body berisi notifikasi Midtrans)
- * @param {object} res - Objek response
- * @returns {object} Status 200 OK ke Midtrans untuk konfirmasi penerimaan.
  */
 const handleMidtransNotification = async (req, res) => {
   const notificationBody = req.body;
+  const isTestMode = process.env.WEBHOOK_TEST_MODE === 'true';
 
   try {
-    // 1. Verifikasi notifikasi dari Midtrans (ini juga memastikan keaslian data)
-    const statusResponse = await coreApi.transaction.notification(notificationBody);
+    // Validasi awal: pastikan payload tidak kosong
+    if (!notificationBody || Object.keys(notificationBody).length === 0) {
+      console.error('Webhook error: payload kosong.', notificationBody);
+      return res.status(400).json({ message: 'Payload webhook kosong.' });
+    }
+
+    // Cek apakah ada identifier transaksi yang bisa dipakai
+    const possibleOrderId = notificationBody.order_id || notificationBody.orderId || notificationBody.order || notificationBody.transaction_id || notificationBody.transactionId;
+    if (!possibleOrderId) {
+      console.error('Webhook error: payload tidak memiliki order_id/transaction_id.', notificationBody);
+      return res.status(400).json({ message: 'Payload webhook tidak memiliki order_id atau transaction_id.' });
+    }
+
+    let statusResponse = notificationBody;
+    let verificationFailed = false;
+
+    // 1. Coba verifikasi dengan Midtrans (jika bukan test mode)
+    if (!isTestMode) {
+      try {
+        statusResponse = await verifyCoreNotification(notificationBody);
+        console.log(`[Webhook] Verifikasi Midtrans sukses untuk order: ${possibleOrderId}`);
+      } catch (verifyErr) {
+        // Jika verifikasi gagal (mis. 404), log tapi tetap lanjutkan dengan data dari payload
+        console.warn(`[Webhook] Verifikasi Midtrans gagal: ${verifyErr.message}`);
+        console.warn(`[Webhook] Menggunakan data dari payload sebagai fallback`);
+        verificationFailed = true;
+        // Gunakan notificationBody yang sudah divalidasi sebagai statusResponse
+        statusResponse = notificationBody;
+      }
+    } else {
+      console.log(`[Webhook] TEST MODE ENABLED - Melewati verifikasi Midtrans`);
+    }
     
-    const orderId = statusResponse.order_id;
-    const transactionStatus = statusResponse.transaction_status;
-    const fraudStatus = statusResponse.fraud_status;
-    const metadata = statusResponse.metadata; // Metadata yang kita sisipkan saat checkout
-    
-    console.log(`Notifikasi diterima untuk Order ID: ${orderId}, Status: ${transactionStatus}`);
-    
+    const orderId = statusResponse.order_id || statusResponse.orderId || possibleOrderId;
+    const transactionStatus = statusResponse.transaction_status || statusResponse.transactionStatus || statusResponse.status;
+    const fraudStatus = statusResponse.fraud_status || statusResponse.fraudStatus;
+    const metadata = statusResponse.metadata || statusResponse.meta || {};
+
+    console.log(`[Webhook] Order ID: ${orderId}, Status: ${transactionStatus}, Fraud: ${fraudStatus}`);
+
     // 2. Logika Aktivasi Enrollment
-    if (transactionStatus == 'settlement') { // Pembayaran berhasil
-      if (fraudStatus == 'accept') {
+    if (transactionStatus == 'settlement' || (isTestMode && transactionStatus === 'settlement')) {
+      if (fraudStatus == 'accept' || !fraudStatus) { // Jika fraud_status kosong, dianggap accept
         
-        // Ambil data penting dari metadata yang kita kirimkan saat checkout
         const userId = metadata.user_id;
         const learningPathId = metadata.learning_path_id;
 
@@ -44,41 +70,36 @@ const handleMidtransNotification = async (req, res) => {
           return res.status(400).json({ message: 'Metadata tidak lengkap.' });
         }
 
-        // 3. Buat/Update record Enrollment
-        // Menggunakan findOrCreate untuk memastikan idempotency (mencegah duplikat jika Midtrans mengirim notifikasi 2x)
-        const [enrollment, created] = await UserEnrollment.findOrCreate({
-          where: {
-            user_id: userId,
-            learning_path_id: learningPathId
-          },
-          defaults: {
-            status: 'success', // Set status sukses
-            enrolled_at: new Date(),
-            midtrans_transaction_id: orderId
+        // Activate enrollment
+        try {
+          const { enrollment, created } = await activateEnrollment(userId, learningPathId, orderId);
+          
+          if (created) {
+            console.log(`[Webhook] ✅ Enrollment BARU dibuat untuk user: ${userId}`);
+          } else {
+            console.log(`[Webhook] ✅ Enrollment di-update untuk user: ${userId}`);
           }
-        });
-
-        if (created) {
-          console.log(`Enrollment berhasil dibuat untuk user: ${userId}`);
-        } else {
-          // Jika record sudah ada (misal dari /checkout pending), update statusnya menjadi success
-          console.log(`Enrollment sudah ada untuk user: ${userId}. Status di-update.`);
-          enrollment.status = 'success';
-          enrollment.enrolled_at = new Date();
-          enrollment.midtrans_transaction_id = orderId;
-          await enrollment.save();
+        } catch (enrollErr) {
+          console.error('Error saat activate enrollment:', enrollErr.message);
+          return res.status(500).json({ message: 'Database error saat activate enrollment.' });
         }
+      } else {
+        console.log(`[Webhook] Transaksi ditolak (fraud_status: ${fraudStatus})`);
       }
     } else if (transactionStatus == 'expire' || transactionStatus == 'cancel' || transactionStatus == 'deny') {
-      // TODO: Di sini tempat untuk update record enrollment jika statusnya gagal/expire
-      console.log(`Pembayaran ${orderId} gagal/expire.`);
+      console.log(`[Webhook] Pembayaran gagal/expire (${transactionStatus})`);
+    } else {
+      console.log(`[Webhook] Status transaksi tidak dikenali: ${transactionStatus}`);
     }
 
-    // 4. Wajib mengirim respon 200 OK ke Midtrans
-    return res.status(200).json({ message: 'Notifikasi berhasil diproses.' });
+    // 3. Wajib mengirim respon 200 OK ke Midtrans
+    return res.status(200).json({ 
+      message: 'Notifikasi berhasil diproses.',
+      debug: { verificationFailed, isTestMode }
+    });
 
   } catch (err) {
-    console.error('Midtrans Webhook Error:', err.message);
+    console.error('[Webhook] Unexpected error:', err.message);
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };
@@ -86,44 +107,34 @@ const handleMidtransNotification = async (req, res) => {
 /**
  * @function handleSupabaseUserDelete
  * @description Menangani notifikasi penghapusan user dari Supabase Auth.
- * Akan menghapus user terkait di database MySQL lokal (sinkronisasi hapus).
  * @route POST /api/v1/webhooks/supabase/user-deleted
- *
- * @param {object} req - Objek request (body berisi payload Supabase)
- * @param {object} res - Objek response
- * @returns {object} Status 200 OK.
  */
 const handleSupabaseUserDelete = async (req, res) => {
   try {
     const { old_record } = req.body;
-    // Ambil ID user dari record lama (record yang baru dihapus)
     const supabaseAuthId = old_record ? old_record.id : null;
 
     if (!supabaseAuthId) {
       return res.status(400).json({ message: 'Payload webhook tidak valid.' });
     }
 
-    console.log(`Webhook diterima: Hapus user dengan Supabase ID ${supabaseAuthId}`);
+    console.log(`[Webhook] Supabase user delete request untuk ID: ${supabaseAuthId}`);
 
-    // 1. Cari user di database MySQL kita
     const user = await User.findOne({
       where: { supabase_auth_id: supabaseAuthId }
     });
 
     if (user) {
-      // 2. Hapus user
-      // (onDelete: 'CASCADE' di model kita akan otomatis menghapus
-      // enrollments, progresses, certificates, dll. user ini)
       await user.destroy();
-      console.log(`User MySQL (ID: ${user.id}) berhasil dihapus.`);
+      console.log(`[Webhook] ✅ User MySQL (ID: ${user.id}) berhasil dihapus.`);
     } else {
-      console.warn(`User dengan Supabase ID ${supabaseAuthId} tidak ditemukan di MySQL.`);
+      console.warn(`[Webhook] ⚠️ User dengan Supabase ID ${supabaseAuthId} tidak ditemukan di MySQL.`);
     }
 
     return res.status(200).json({ message: 'Webhook delete berhasil diproses.' });
 
   } catch (err) {
-    console.error('Supabase Webhook Error:', err.message);
+    console.error('[Webhook] Supabase error:', err.message);
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };

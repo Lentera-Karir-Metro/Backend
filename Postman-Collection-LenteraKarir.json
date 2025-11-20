@@ -1,0 +1,258 @@
+{
+  "info": {
+    "_postman_id": "lentera-karir-collection",
+    "name": "LenteraKarir API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for LenteraKarir backend API. Replace {{baseUrl}}, set tokens in environment."
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sync User (Supabase -> MySQL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/sync",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"auth0|123\",\n  \"email\": \"user@example.com\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Catalog",
+      "item": [
+        {
+          "name": "List Learning Paths",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/catalog/learning-paths" }
+        },
+        {
+          "name": "Get Learning Path Detail",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/catalog/learning-paths/{{lpId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Admin: Learning Paths",
+      "item": [
+        {
+          "name": "Create Learning Path",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/learning-paths",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Belajar Node.js\",\n  \"description\": \"Kurikulum lengkap Node.js\"\n}" }
+          }
+        },
+        {
+          "name": "Get All Learning Paths",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/learning-paths" }
+        },
+        {
+          "name": "Get Learning Path by ID",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/learning-paths/{{lpId}}" }
+        },
+        {
+          "name": "Update Learning Path",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/learning-paths/{{lpId}}", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Belajar Node.js (Updated)\"\n}" } }
+        },
+        {
+          "name": "Delete Learning Path",
+          "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/learning-paths/{{lpId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Admin: Courses & Modules",
+      "item": [
+        {
+          "name": "Create Course",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/learning-paths/{{lpId}}/courses", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Dasar JavaScript\",\n  \"description\": \"Modul pengantar JS\"\n}" } }
+        },
+        {
+          "name": "Reorder Courses",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/learning-paths/{{lpId}}/reorder-courses", "body": { "mode": "raw", "raw": "{\n  \"order\": [\"CR-001\", \"CR-002\"]\n}" } }
+        },
+        {
+          "name": "Update Course",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/courses/{{courseId}}", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Course Updated\"\n}" } }
+        },
+        {
+          "name": "Delete Course",
+          "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/courses/{{courseId}}" }
+        },
+        {
+          "name": "Create Module",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/courses/{{courseId}}/modules", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Module 1\",\n  \"content\": \"Konten modul...\"\n}" } }
+        },
+        {
+          "name": "Reorder Modules",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/courses/{{courseId}}/reorder-modules", "body": { "mode": "raw", "raw": "{\n  \"order\": [\"MD-001\", \"MD-002\"]\n}" } }
+        },
+        {
+          "name": "Update Module",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/modules/{{moduleId}}", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Module Updated\"\n}" } }
+        },
+        {
+          "name": "Delete Module",
+          "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/modules/{{moduleId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Admin: Quiz Engine",
+      "item": [
+        {
+          "name": "Create Quiz",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/quizzes", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Quiz Pertama\",\n  \"time_limit\": 600\n}" } }
+        },
+        {
+          "name": "Get All Quizzes",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/quizzes" }
+        },
+        {
+          "name": "Get Quiz by ID",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/quizzes/{{quizId}}" }
+        },
+        {
+          "name": "Update Quiz",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/quizzes/{{quizId}}", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Quiz Updated\"\n}" } }
+        },
+        {
+          "name": "Delete Quiz",
+          "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/quizzes/{{quizId}}" }
+        },
+        {
+          "name": "Add Question to Quiz",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/quizzes/{{quizId}}/questions", "body": { "mode": "raw", "raw": "{\n  \"text\": \"Siapa presiden RI?\",\n  \"type\": \"single_choice\"\n}" } }
+        },
+        {
+          "name": "Update Question",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/questions/{{questionId}}", "body": { "mode": "raw", "raw": "{\n  \"text\": \"Pertanyaan diperbarui\"\n}" } }
+        },
+        {
+          "name": "Delete Question",
+          "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/questions/{{questionId}}" }
+        },
+        {
+          "name": "Add Option to Question",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/questions/{{questionId}}/options", "body": { "mode": "raw", "raw": "{\n  \"text\": \"Option A\",\n  \"is_correct\": false\n}" } }
+        },
+        {
+          "name": "Update Option",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/options/{{optionId}}", "body": { "mode": "raw", "raw": "{\n  \"text\": \"Pilihan diperbarui\",\n  \"is_correct\": true\n}" } }
+        },
+        {
+          "name": "Delete Option",
+          "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/options/{{optionId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Admin: User Management",
+      "item": [
+        {
+          "name": "List Users",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/users" }
+        },
+        {
+          "name": "Update User",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}", "body": { "mode": "raw", "raw": "{\n  \"nama_lengkap\": \"Nama Baru\"\n}" } }
+        },
+        {
+          "name": "Deactivate User",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/deactivate" }
+        },
+        {
+          "name": "Trigger Password Reset",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/reset-password" }
+        },
+        {
+          "name": "Manual Enroll User (Admin)",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/enroll", "body": { "mode": "raw", "raw": "{\n  \"learning_path_id\": \"LP-001\"\n}" }}
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Checkout Session (Midtrans)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/payments/checkout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"learning_path_id\": \"LP-001\",\n  \"amount\": 100000,\n  \"user_id\": \"user-123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Midtrans Notification (Test)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{baseUrl}}/api/v1/webhooks/midtrans",
+            "body": { "mode": "raw", "raw": "{\n  \"order_id\": \"EN-XXXXXX\",\n  \"transaction_status\": \"capture\",\n  \"transaction_id\": \"123456789\"\n}" }
+          }
+        },
+        {
+          "name": "Supabase User Deleted",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/webhooks/supabase/user-deleted", "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"auth0|123\"\n}" }}
+        }
+      ]
+    },
+    {
+      "name": "Learning (User)",
+      "item": [
+        {
+          "name": "Get My Dashboard",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/api/v1/learn/dashboard" }
+        },
+        {
+          "name": "Get Learning Path Content (User)",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/api/v1/learn/learning-paths/{{lpId}}" }
+        },
+        {
+          "name": "Mark Module As Complete",
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" },{ "key": "Authorization", "value": "Bearer {{userToken}}" }], "url": "{{baseUrl}}/api/v1/learn/modules/{{moduleId}}/complete", "body": { "mode": "raw", "raw": "{\n  \"progress_data\": {}\n}" } }
+        }
+      ]
+    },
+    {
+      "name": "Quiz: Learning Flow",
+      "item": [
+        {
+          "name": "Start / Resume Quiz",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" },{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/learn/quiz/{{quizId}}/start", "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"user-123\"\n}" } }
+        },
+        {
+          "name": "Save Partial Answer",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" },{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/learn/attempts/{{attemptId}}/answer", "body": { "mode": "raw", "raw": "{\n  \"question_id\": \"Q-1\",\n  \"selected_option\": \"OP-1\"\n}" } }
+        },
+        {
+          "name": "Submit Quiz",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" },{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/learn/attempts/{{attemptId}}/submit", "body": { "mode": "raw", "raw": "{\n  \"answers\": [ { \"question_id\": \"Q-1\", \"option_id\": \"OP-1\" } ]\n}" } }}
+      ]
+    }
+  ]
+}
