@@ -2,7 +2,7 @@
 /**
  * @fileoverview Controller untuk mengelola manajemen user (Admin).
  * Endpoint ini menangani CRUD user, nonaktifkan, reset password, dan pendaftaran manual.
- * Membutuhkan Service Role Key Supabase untuk fungsi-fungsi sensitif.
+ * Membutuhkan Service Role Key Supabase untuk fungsi-fungsi sensitif (Ban, Reset Password).
  */
 const { createClient } = require('@supabase/supabase-js');
 const db = require('../../models');
@@ -12,6 +12,7 @@ const { Op } = require('sequelize');
 
 // Inisialisasi Supabase Admin Client (menggunakan Service Role Key)
 // Klien ini memiliki privilege tinggi untuk memodifikasi user lain di Supabase Auth.
+// PENTING: Jangan pernah mengekspos SERVICE_ROLE_KEY ini ke frontend!
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -28,7 +29,7 @@ const supabaseAdmin = createClient(
  */
 const getAllUsers = async (req, res) => {
   try {
-    // Ambil data penting saja (hindari mengembalikan supabase_auth_id)
+    // Ambil data penting saja (menggunakan 'username' sesuai skema baru)
     const users = await User.findAll({
       attributes: ['id', 'email', 'username', 'role', 'status'],
       order: [['createdAt', 'DESC']],
@@ -125,7 +126,8 @@ const triggerPasswordReset = async (req, res) => {
     // Memanggil API Supabase Auth untuk mengirim email reset
     const { data, error } = await supabaseAdmin.auth.resetPasswordForEmail(
       user.email,
-      // Opsi untuk redirectTo dapat ditambahkan di sini
+      // Anda bisa tambahkan redirectTo jika frontend punya halaman reset khusus
+      // { redirectTo: 'http://localhost:3000/reset-password' }
     );
 
     if (error) {
@@ -164,14 +166,14 @@ const manualEnrollUser = async (req, res) => {
       return res.status(404).json({ message: 'User atau Learning Path tidak ditemukan.' });
     }
 
-    // 2. Daftarkan user menggunakan findOrCreate (pastikan id ter-generate)
+    // 2. Daftarkan user menggunakan findOrCreate
     const [enrollment, created] = await UserEnrollment.findOrCreate({
       where: { 
         user_id: user.id, 
         learning_path_id: learningPath.id 
       },
       defaults: {
-        id: generateCustomId('EN'),
+        // ID (EN-XXXXXX) otomatis di-generate oleh Hook di Model
         status: 'success', // Langsung set status sukses
         enrolled_at: new Date(),
         midtrans_transaction_id: 'MANUAL_BY_ADMIN' // Penanda bahwa ini bukan transaksi Midtrans

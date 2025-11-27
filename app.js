@@ -26,8 +26,8 @@ app.get('/api/v1/test', (req, res) => {
 });
 
 // 4b. Debug Route (Untuk mengecek status Midtrans & Environment)
+// HANYA AKTIF DI MODE DEVELOPMENT
 app.get('/api/v1/debug/config', (req, res) => {
-  // Hanya tampilkan di development
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ message: 'Forbidden' });
   }

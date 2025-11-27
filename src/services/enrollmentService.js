@@ -1,18 +1,20 @@
+// File: src/services/enrollmentService.js
 /**
- * Service untuk mengelola User Enrollment
- * Centralized logic untuk membuat dan update enrollment
+ * @fileoverview Service untuk mengelola logika bisnis User Enrollment.
+ * Memisahkan logika database yang kompleks dari Controller agar bisa digunakan ulang (Reusable).
  */
 
 const db = require('../../models');
 const { UserEnrollment } = db;
-const { generateCustomId } = require('../utils/idGenerator');
 
 /**
- * Buat atau update enrollment untuk user
+ * Fungsi serbaguna untuk membuat atau memperbarui enrollment.
+ * Digunakan oleh Webhook (Aktivasi) dan Admin (Manual Enroll).
+ *
  * @param {string} userId - ID user (LT-XXXXXX)
  * @param {string} learningPathId - ID learning path (LP-XXXXXX)
- * @param {object} options - Opsi tambahan { status, midtransId, enrolledAt }
- * @returns {object} { enrollment, created }
+ * @param {object} options - Opsi tambahan { status, midtransId, enrolledAt, skipIfExists }
+ * @returns {Promise<object>} { enrollment, created }
  */
 async function createOrUpdateEnrollment(userId, learningPathId, options = {}) {
   const {
@@ -29,30 +31,32 @@ async function createOrUpdateEnrollment(userId, learningPathId, options = {}) {
         learning_path_id: learningPathId
       },
       defaults: {
-        id: generateCustomId('EN'),
+        // ID (EN-XXXXXX) akan otomatis di-generate oleh Hook di Model UserEnrollment
         status,
         midtrans_transaction_id: midtransId,
         enrolled_at: enrolledAt
       }
     });
 
+    // Jika data sudah ada (tidak baru dibuat) dan kita tidak minta skip
     if (!created && !skipIfExists) {
-      // Update existing enrollment
-      enrollment.status = status || enrollment.status;
+      // Update data yang ada
+      if (status) enrollment.status = status;
       if (midtransId) enrollment.midtrans_transaction_id = midtransId;
       if (enrolledAt) enrollment.enrolled_at = enrolledAt;
+      
       await enrollment.save();
     }
 
     return { enrollment, created };
   } catch (err) {
     console.error('Error creating/updating enrollment:', err.message);
-    throw err;
+    throw err; // Lempar error ke controller untuk ditangani
   }
 }
 
 /**
- * Activate enrollment (set status to success)
+ * Wrapper khusus untuk mengaktifkan enrollment (biasanya dipanggil oleh Webhook).
  * @param {string} userId
  * @param {string} learningPathId
  * @param {string} midtransId
@@ -62,7 +66,7 @@ async function activateEnrollment(userId, learningPathId, midtransId = null) {
     status: 'success',
     midtransId,
     enrolledAt: new Date(),
-    skipIfExists: false
+    skipIfExists: false // Paksa update status jadi success meskipun sudah ada (misal pending)
   });
 }
 

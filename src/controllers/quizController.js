@@ -1,3 +1,4 @@
+// File: src/controllers/quizController.js
 /**
  * @fileoverview Controller untuk mengelola CRUD (Create, Read, Update, Delete) Quiz Engine.
  * Meliputi Quiz (Master), Question, dan Option. Controller ini diakses khusus oleh Admin.
@@ -7,6 +8,7 @@ const { Quiz, Question, Option } = db;
 const { generateCustomId } = require('../utils/idGenerator');
 
 // --- Controller untuk QUIZ (MASTER) ---
+
 /**
  * @function createQuiz
  * @description Membuat entitas Quiz baru.
@@ -20,7 +22,7 @@ const createQuiz = async (req, res) => {
   const { title, pass_threshold } = req.body;
   try {
     const quiz = await Quiz.create({
-      id: generateCustomId('QZ'),
+      // ID (QZ-XXXXXX) otomatis dibuat oleh Hook di model Quiz
       title,
       pass_threshold: pass_threshold || 0.75, 
     });
@@ -149,6 +151,7 @@ const addQuestionToQuiz = async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz tidak ditemukan.' });
     }
+    // ID Question adalah AUTO_INCREMENT, jadi tidak perlu generate ID manual
     const question = await Question.create({
       id: generateCustomId('QN'),
       quiz_id: quiz_id,
@@ -225,6 +228,7 @@ const addOptionToQuestion = async (req, res) => {
     if (!question) {
       return res.status(404).json({ message: 'Pertanyaan tidak ditemukan.' });
     }
+    // ID Option adalah AUTO_INCREMENT, jadi tidak perlu generate ID manual
     const option = await Option.create({
       id: generateCustomId('OP'),
       question_id: question_id,

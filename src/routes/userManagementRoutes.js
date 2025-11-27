@@ -39,7 +39,7 @@ router.get('/users', getAllUsers);
 /**
  * @method PUT
  * @route /users/:id
- * @description Memperbarui data user (misal: nama_lengkap untuk sertifikat).
+ * @description Memperbarui data user (misal: username untuk sertifikat).
  */
 router.put('/users/:id', updateUser);
 

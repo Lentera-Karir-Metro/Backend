@@ -5,7 +5,7 @@
  */
 const db = require('../../models');
 const { LearningPath, UserEnrollment } = db;
-const { createSnapTransaction } = require('../utils/midtransClient'); // Impor wrapper Midtrans Snap Client
+const { snap } = require('../utils/midtransClient'); // Impor objek 'snap' langsung
 const { generateCustomId } = require('../utils/idGenerator'); // Impor helper ID kustom
 
 /**
@@ -22,7 +22,7 @@ const createCheckoutSession = async (req, res) => {
   // Ambil data User dari token (disediakan oleh middleware 'protect')
   const userId = req.user.id; 
   const userEmail = req.user.email;
-  const userNama = req.user.username;
+  const userNama = req.user.username; // Menggunakan kolom 'username'
 
   if (!learning_path_id) {
     return res.status(400).json({ message: 'Learning Path ID wajib diisi.' });
@@ -59,7 +59,9 @@ const createCheckoutSession = async (req, res) => {
       enrollment.status = 'pending';
       await enrollment.save();
     } else {
-      // Jika belum ada, buat baru (set id custom agar hook tidak bergantung)
+      // Jika belum ada, buat baru.
+      // ID (EN-XXXXXX) akan otomatis di-generate oleh Hook di Model
+
       enrollment = await UserEnrollment.create({
         id: generateCustomId('EN'),
         user_id: userId,
@@ -82,7 +84,7 @@ const createCheckoutSession = async (req, res) => {
         name: learningPath.title,
       }],
       customer_details: {
-        first_name: userNama,
+        first_name: userNama, // Menggunakan username
         email: userEmail,
       },
       // 6. SISIPKAN METADATA (SANGAT PENTING!)
@@ -94,7 +96,8 @@ const createCheckoutSession = async (req, res) => {
     };
 
     // 7. Dapatkan token/URL Snap dari Midtrans
-    const transaction = await createSnapTransaction(transactionDetails);
+    // Menggunakan snap.createTransaction (sesuai dokumentasi library midtrans-client)
+    const transaction = await snap.createTransaction(transactionDetails);
 
     // 8. Kirim respon ke frontend
     return res.status(201).json({

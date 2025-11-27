@@ -11,7 +11,7 @@ module.exports = {
    * Fungsi 'up' dieksekusi ketika migrasi dijalankan.
    * Fungsi ini bertanggung jawab untuk membuat tabel 'Certificates'.
    * Tabel ini menyimpan data sertifikat yang di-generate secara otomatis
-   * ketika seorang pengguna berhasil menyelesaikan seluruh modul
+   * ketika seorang pengguna berhasil menyelesaikan seluruh modul (100%)
    * dalam sebuah 'LearningPath'.
    *
    * @param {QueryInterface} queryInterface - Interface Query Sequelize
@@ -49,7 +49,7 @@ module.exports = {
       },
       certificate_url: {
         type: Sequelize.STRING,
-        allowNull: true, // URL publik ke file/halaman sertifikat
+        allowNull: true, // URL publik ke file/halaman sertifikat (jika ada PDF fisik)
       },
       createdAt: {
         allowNull: false,
@@ -61,7 +61,7 @@ module.exports = {
       }
     });
 
-    // Constraint: 1 User hanya bisa dapat 1 Sertifikat per Learning Path
+    // Constraint: Mencegah user mendapatkan sertifikat ganda untuk course yang sama
     await queryInterface.addConstraint('Certificates', {
       fields: ['user_id', 'learning_path_id'],
       type: 'unique',

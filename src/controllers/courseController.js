@@ -1,3 +1,4 @@
+// File: src/controllers/courseController.js
 /**
  * @fileoverview Controller untuk mengelola entitas Course (CRUD dan reordering).
  * Controller ini hanya diakses oleh Admin.
@@ -5,8 +6,8 @@
 const db = require('../../models');
 const Course = db.Course;
 const LearningPath = db.LearningPath;
-const { sequelize } = require('../../models');
-const { generateCustomId } = require('../utils/idGenerator');
+// Impor sequelize untuk menjalankan transaksi database (diperlukan untuk reordering)
+const { sequelize } = require('../../models'); 
 
 /**
  * @function createCourse
@@ -19,7 +20,7 @@ const { generateCustomId } = require('../utils/idGenerator');
  */
 const createCourse = async (req, res) => {
   const { title, description } = req.body;
-  const { lp_id } = req.params;
+  const { lp_id } = req.params; // Ambil ID learning path dari URL
 
   if (!title) {
     return res.status(400).json({ message: 'Title wajib diisi.' });
@@ -33,16 +34,18 @@ const createCourse = async (req, res) => {
     }
 
     // 2. Hitung sequence_order berikutnya
+    // Kita cari course dengan urutan paling akhir di learning path ini
     const lastCourse = await Course.findOne({
       where: { learning_path_id: lp_id },
       order: [['sequence_order', 'DESC']],
     });
 
+    // Jika ada course sebelumnya, urutannya +1. Jika tidak, mulai dari 1.
     const nextOrder = lastCourse ? lastCourse.sequence_order + 1 : 1;
 
-    // 3. Buat Course dengan ID custom
+    // 3. Buat Course
+    // Catatan: ID (CR-XXXXXX) akan otomatis dibuat oleh Hook di model Course
     const newCourse = await Course.create({
-      id: generateCustomId('CR'),
       learning_path_id: lp_id,
       title,
       description: description || null,
@@ -118,35 +121,37 @@ const deleteCourse = async (req, res) => {
  */
 const reorderCourses = async (req, res) => {
   const { lp_id } = req.params;
-  const { course_ids } = req.body;
+  const { course_ids } = req.body; // Menerima array ID kustom Course
 
   if (!Array.isArray(course_ids) || course_ids.length === 0) {
     return res.status(400).json({ message: 'course_ids harus berupa array.' });
   }
 
+  // Mulai transaksi database untuk memastikan integritas data
   const t = await sequelize.transaction(); 
 
   try {
+    // Update sequence_order setiap course berdasarkan index array
     const updatePromises = course_ids.map((id, index) => {
       return Course.update(
-        { sequence_order: index + 1 },
+        { sequence_order: index + 1 }, // Urutan dimulai dari 1
         { 
           where: { 
             id: id,
-            learning_path_id: lp_id
+            learning_path_id: lp_id // Pastikan hanya update course di path yg benar
           },
-          transaction: t,
+          transaction: t, // Jalankan dalam transaksi
         }
       );
     });
 
-    await Promise.all(updatePromises); 
-    await t.commit(); 
+    await Promise.all(updatePromises); // Tunggu semua update selesai
+    await t.commit(); // Simpan perubahan
 
     return res.status(200).json({ message: 'Urutan course berhasil diperbarui.' });
 
   } catch (err) {
-    await t.rollback(); 
+    await t.rollback(); // Batalkan perubahan jika ada error
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };
@@ -155,5 +160,5 @@ module.exports = {
   createCourse,
   updateCourse,
   deleteCourse,
-  reorderCourses,
+  reorderCourses
 };

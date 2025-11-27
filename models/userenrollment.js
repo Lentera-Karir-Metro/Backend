@@ -77,11 +77,11 @@ module.exports = (sequelize, DataTypes) => {
        * @param {UserEnrollment} enrollment - Instance enrollment yang akan dibuat
        */
       beforeCreate: (enrollment, options) => {
-          // Hanya generate ID jika caller belum menyetelnya.
-          if (!enrollment.id) {
-            enrollment.id = generateCustomId('EN'); // Prefix 'EN'
-          }
-        },
+         // Hanya generate ID jika caller belum menyetelnya.
+         if (!enrollment.id) {
+           enrollment.id = generateCustomId('EN'); // Prefix 'EN'
+         }
+       },
     },
   });
   return UserEnrollment;

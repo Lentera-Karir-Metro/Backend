@@ -8,7 +8,7 @@ module.exports = (sequelize, DataTypes) => {
   /**
    * Model Certificate
    * Merepresentasikan sertifikat yang didapat pengguna setelah
-   * menyelesaikan sebuah Learning Path.
+   * menyelesaikan sebuah Learning Path secara keseluruhan.
    */
   class Certificate extends Model {
     /**
@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // Sebuah Sertifikat dimiliki oleh satu User
       Certificate.belongsTo(models.User, { foreignKey: 'user_id' });
-      // Sebuah Sertifikat diberikan untuk satu LearningPath
+      // Sebuah Sertifikat diberikan untuk satu LearningPath tertentu
       Certificate.belongsTo(models.LearningPath, { foreignKey: 'learning_path_id' });
     }
   }
@@ -51,11 +51,11 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW,
     },
     total_hours: {
-      type: DataTypes.INTEGER, // Akumulasi (SUM) dari estimasi_waktu_menit
+      type: DataTypes.INTEGER, // Akumulasi (SUM) dari estimasi_waktu_menit semua modul
       allowNull: false,
     },
     certificate_url: {
-      type: DataTypes.STRING, // URL unik ke halaman/file sertifikat
+      type: DataTypes.STRING, // URL publik ke file/halaman sertifikat (opsional)
       allowNull: true,
     },
   }, {

@@ -57,7 +57,6 @@ module.exports = (sequelize, DataTypes) => {
     sequelize,
     modelName: 'Option',
     timestamps: true, // Otomatis menambah createdAt dan updatedAt
-    // Tidak ada hook 'beforeCreate' karena ID sudah auto-increment
   });
   return Option;
 };

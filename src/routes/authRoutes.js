@@ -6,14 +6,21 @@
 const express = require('express');
 const router = express.Router();
 
-// Impor controller yang menangani logika sinkronisasi
-const { syncUser } = require('../controllers/authController');
+// Impor controller yang menangani logika sinkronisasi dan refresh token
+const { syncUser, refreshToken } = require('../controllers/authController');
 
 /**
- * @description Mendefinisikan endpoint untuk proses sinkronisasi.
  * @method POST
  * @route /sync
+ * @description Endpoint krusial untuk sinkronisasi data user dari Supabase ke MySQL setelah login/register.
  */
-router.post('/sync', syncUser); // Endpoint krusial untuk sinkronisasi Supabase ke MySQL
+router.post('/sync', syncUser);
+
+/**
+ * @method POST
+ * @route /refresh-token
+ * @description Endpoint untuk memperbarui token sesi (opsional, jika tidak ditangani otomatis oleh frontend SDK).
+ */
+router.post('/refresh-token', refreshToken);
 
 module.exports = router;

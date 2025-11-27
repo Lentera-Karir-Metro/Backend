@@ -1,9 +1,15 @@
+// File: src/controllers/authController.js
+/**
+ * @fileoverview Controller untuk menangani Autentikasi dan Sinkronisasi User.
+ * Menggunakan pendekatan Hybrid: Login di Supabase -> Sinkronisasi data ke MySQL.
+ */
+
 const { createClient } = require('@supabase/supabase-js');
 const db = require('../../models');
 const User = db.User;
-const { generateCustomId } = require('../utils/idGenerator');
 
-// Inisialisasi Supabase Client (menggunakan key ANON publik dari .env)
+// Inisialisasi Supabase Client
+// Menggunakan ANON KEY (Public) karena aksi ini dilakukan atas nama user yang sedang login.
 const supabase = createClient(
   process.env.SUPABASE_URL, 
   process.env.SUPABASE_KEY
@@ -11,16 +17,16 @@ const supabase = createClient(
 
 /**
  * @function syncUser
- * @description Endpoint untuk menyinkronkan data user dari Supabase Auth ke database MySQL lokal.
- * Proses ini memastikan setiap user yang login memiliki record di tabel 'Users' kita.
+ * @description Menyinkronkan data user yang baru login di Supabase ke database MySQL lokal.
+ * Jika user belum ada di MySQL, akan dibuatkan record baru.
  * @route POST /api/v1/auth/sync
  *
- * @param {object} req - Objek request dari Express
- * @param {object} res - Objek response dari Express
- * @returns {object} Response JSON berisi data user yang sudah disinkronkan.
+ * @param {object} req - Objek request (Header Authorization: Bearer <TOKEN>)
+ * @param {object} res - Objek response
+ * @returns {object} Data user dari database MySQL.
  */
 const syncUser = async (req, res) => {
-  // 1. Ambil JWT dari header Authorization
+  // 1. Validasi Header Authorization
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Token tidak ada atau format salah.' });
@@ -29,38 +35,39 @@ const syncUser = async (req, res) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // 2. Verifikasi JWT ke Supabase
+    // 2. Verifikasi JWT ke Supabase (Memastikan token asli & valid)
     const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
 
-    if (error) {
-      return res.status(401).json({ message: 'Token tidak valid.' });
-    }
-    if (!supabaseUser) {
-      return res.status(404).json({ message: 'User Supabase tidak ditemukan.' });
-    }
+    if (error) return res.status(401).json({ message: 'Token tidak valid.' });
+    if (!supabaseUser) return res.status(404).json({ message: 'User Supabase tidak ditemukan.' });
 
     const supabaseAuthId = supabaseUser.id;
 
-    // 3. Logika Sinkronisasi: Cari user di MySQL
+    // 3. Cek keberadaan User di MySQL
     let user = await User.findOne({ 
       where: { supabase_auth_id: supabaseAuthId } 
     });
 
-    // 4. Jika user TIDAK ADA di MySQL, buat record baru
+    // 4. Jika tidak ada, Buat User Baru
     if (!user) {
+      // Logika Fallback Nama:
+      // 1. Cek 'username' (dari form register manual)
+      // 2. Cek 'full_name' (dari login Google)
+      // 3. Ambil bagian depan email (jika keduanya kosong)
       const usernameInput = supabaseUser.user_metadata.username || 
-                          supabaseUser.user_metadata.username || 
-                          supabaseUser.email;
+                            supabaseUser.user_metadata.full_name || 
+                            supabaseUser.email.split('@')[0];
 
       user = await User.create({
-        id: generateCustomId('LT'),
         supabase_auth_id: supabaseAuthId,
         email: supabaseUser.email,
         username: usernameInput,
+        // Role otomatis di-set 'user' oleh default value Model
+        // ID otomatis di-generate oleh Hook 'beforeCreate' di Model
       });
     }
 
-    // 5. Hasil: Kirim data user MySQL ke frontend
+    // 5. Kembalikan data user lokal
     return res.status(200).json({
       message: 'Sinkronisasi berhasil.',
       user: {
@@ -77,4 +84,43 @@ const syncUser = async (req, res) => {
   }
 };
 
-module.exports = { syncUser };
+/**
+ * @function refreshToken
+ * @description Wrapper untuk memperbarui session token (Refresh Token Rotation).
+ * Biasanya ditangani otomatis oleh library Supabase di Frontend, tapi disediakan di sini sebagai opsi.
+ * @route POST /api/v1/auth/refresh-token
+ *
+ * @param {object} req - Objek request (Body: { refresh_token })
+ * @param {object} res - Objek response
+ * @returns {object} Token akses dan refresh token baru.
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
+
+    if (!refresh_token) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+
+    if (error) {
+      return res.status(401).json({ error: 'Invalid refresh token', details: error.message });
+    }
+
+    return res.status(200).json({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in: data.session.expires_in,
+    });
+  } catch (err) {
+    console.error('Error refreshing token:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Ekspor kedua fungsi
+module.exports = { 
+  syncUser, 
+  refreshToken 
+};

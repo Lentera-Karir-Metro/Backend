@@ -8,7 +8,11 @@ module.exports = (sequelize, DataTypes) => {
   /**
    * Model Quiz
    * Merepresentasikan "master" dari sebuah kuis.
-   * Model ini terhubung ke Modul, dan memiliki banyak Pertanyaan.
+   * Model ini menyimpan aturan dasar kuis (judul, syarat lulus) dan
+   * bertindak sebagai wadah untuk Pertanyaan (Questions).
+   *
+   * Kuis ini bersifat reusable: satu Quiz Master bisa ditautkan ke
+   * berbagai Modul berbeda.
    */
   class Quiz extends Model {
     /**
@@ -18,18 +22,21 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // Sebuah Kuis (secara opsional) terhubung ke (hasOne) satu Modul
+      // Relasi ini memungkinkan kita melihat di modul mana kuis ini dipakai
       Quiz.hasOne(models.Module, {
         foreignKey: 'quiz_id',
         as: 'module', // Alias untuk relasi
       });
 
       // Sebuah Kuis memiliki (hasMany) banyak Pertanyaan
+      // Jika Kuis dihapus, pertanyaan di dalamnya ikut terhapus (Cascade)
       Quiz.hasMany(models.Question, {
         foreignKey: 'quiz_id',
         as: 'questions', // Alias untuk relasi
       });
 
       // Sebuah Kuis dapat memiliki (hasMany) banyak Upaya Pengerjaan (Attempts)
+      // Ini menyimpan riwayat user yang mengerjakan kuis ini
       Quiz.hasMany(models.UserQuizAttempt, {
         foreignKey: 'quiz_id',
         as: 'attempts', // Alias untuk relasi
@@ -49,12 +56,12 @@ module.exports = (sequelize, DataTypes) => {
     },
     title: {
       type: DataTypes.STRING,
-      allowNull: false, // Judul Kuis
+      allowNull: false, // Judul Kuis (misal: "Evaluasi Akhir Bab 1")
     },
     pass_threshold: {
       type: DataTypes.FLOAT,
       allowNull: false,
-      defaultValue: 0.75, // Syarat lulus 75%
+      defaultValue: 0.75, // Syarat lulus 75% (0.75)
     },
   }, {
     sequelize,

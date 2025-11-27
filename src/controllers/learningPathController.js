@@ -7,7 +7,6 @@ const db = require('../../models');
 const LearningPath = db.LearningPath;
 const Course = db.Course; 
 const Module = db.Module; // Tambahkan import Module untuk nested include
-const { generateCustomId } = require('../utils/idGenerator');
 
 /**
  * @function createLearningPath
@@ -28,7 +27,7 @@ const createLearningPath = async (req, res) => {
 
   try {
     const newLearningPath = await LearningPath.create({
-      id: generateCustomId('LP'), // Generate ID custom (LP-XXXXXX)
+      // ID (LP-XXXXXX) akan otomatis di-generate oleh Hook di Model
       title,
       description: description || null, // Nilai default null jika tidak dikirim
       price: parseFloat(price), // Pastikan harga di-parse sebagai float

@@ -20,7 +20,7 @@ const { Op } = require('sequelize');
  * @description Helper untuk memverifikasi apakah user terdaftar di Learning Path yang terkait dengan kuis.
  * @param {string} userId - ID kustom user (LT-XXXXXX)
  * @param {string} quizId - ID kustom kuis (QZ-XXXXXX)
- * @returns {object} { error: string | null, status: number }
+ * @returns {Promise<object>} { error: string | null, status: number }
  */
 const validateQuizAccess = async (userId, quizId) => {
   // Cari modul yang terkait dengan kuis ini
@@ -46,7 +46,8 @@ const validateQuizAccess = async (userId, quizId) => {
     return { error: 'Akses ditolak. Anda tidak terdaftar di learning path kuis ini.', status: 403 };
   }
 
-  // (Validasi penguncian (lock) konten dilakukan di controller learningController)
+  // (Validasi penguncian (lock) konten dilakukan di controller learningController, 
+  // tapi validasi enrollment di sini adalah layer keamanan kedua).
 
   return { error: null, status: 200 };
 };
@@ -91,6 +92,7 @@ const startOrResumeQuiz = async (req, res) => {
     }
 
     // 4. Ambil semua soal dan opsi (kirim semua sekaligus)
+    // PENTING: attribute is_correct JANGAN disertakan di sini
     const quizData = await Quiz.findByPk(quiz_id, {
       attributes: ['id', 'title'],
       include: {
@@ -100,7 +102,7 @@ const startOrResumeQuiz = async (req, res) => {
         include: {
           model: Option,
           as: 'options',
-          attributes: ['id', 'option_text'], // JANGAN sertakan 'is_correct'
+          attributes: ['id', 'option_text'], // Secure: sembunyikan is_correct
         },
         order: [['createdAt', 'ASC']]
       }
@@ -156,7 +158,7 @@ const savePartialAnswer = async (req, res) => {
     }
 
     // 2. Simpan atau Update jawaban (Upsert)
-    // Jawaban lama akan ditimpa jika ada
+    // Jawaban lama untuk pertanyaan yang sama akan ditimpa
     await UserQuizAnswer.upsert({
       user_quiz_attempt_id: attempt_id,
       question_id: question_id,
@@ -187,7 +189,7 @@ const submitQuiz = async (req, res) => {
     // 1. Validasi attempt (harus 'in_progress')
     const attempt = await UserQuizAttempt.findOne({
       where: { id: attempt_id, user_id: userId, status: 'in_progress' },
-      include: { model: Quiz } // Ambil data kuis-nya
+      include: { model: Quiz } // Ambil data kuis-nya (untuk pass_threshold)
     });
 
     if (!attempt) {
@@ -239,7 +241,7 @@ const submitQuiz = async (req, res) => {
     if (isPassed) {
       const module = await Module.findOne({ where: { quiz_id: attempt.quiz_id }});
       if (module) {
-        // Buat record di UserModuleProgress (menggunakan findOrCreate karena record harus unik)
+        // Buat record di UserModuleProgress
         await db.UserModuleProgress.findOrCreate({
           where: { user_id: userId, module_id: module.id }
         });
@@ -258,7 +260,7 @@ const submitQuiz = async (req, res) => {
 
   } catch (err) { 
     return res.status(500).json({ message: 'Server error.', error: err.message }); 
-    } 
+  } 
 };
 
 module.exports = {

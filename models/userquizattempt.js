@@ -6,25 +6,25 @@ module.exports = (sequelize, DataTypes) => {
   /**
    * Model UserQuizAttempt
    * Merepresentasikan setiap "sesi" atau "upaya" pengerjaan kuis oleh pengguna.
-   * Ini adalah tabel utama untuk melacak status kuis, skor, dan 
-   * memungkinkan fitur 'retake' (mengulang).
+   * Ini adalah tabel utama untuk melacak status kuis (sedang dikerjakan/selesai), skor akhir, 
+   * dan memungkinkan fitur 'retake' (mengulang kuis berkali-kali).
    */
   class UserQuizAttempt extends Model {
     /**
      * Helper method untuk mendefinisikan relasi.
      * Method ini otomatis dipanggil oleh `models/index.js`.
-     * @param {object} models - Kumpulan semua model
+     * @param {object} models - Kumpulan semua model yang terdefinisi
      */
     static associate(models) {
       // Sesi ini dimiliki oleh (belongsTo) satu User
       UserQuizAttempt.belongsTo(models.User, { foreignKey: 'user_id' });
-      // Sesi ini merujuk pada (belongsTo) satu Quiz
+      // Sesi ini merujuk pada (belongsTo) satu Quiz Master
       UserQuizAttempt.belongsTo(models.Quiz, { foreignKey: 'quiz_id' });
 
       // Satu sesi attempt memiliki (hasMany) banyak jawaban parsial (UserQuizAnswer)
       UserQuizAttempt.hasMany(models.UserQuizAnswer, {
         foreignKey: 'user_quiz_attempt_id',
-        as: 'answers',
+        as: 'answers', // Alias untuk relasi
       });
     }
   }
@@ -33,7 +33,7 @@ module.exports = (sequelize, DataTypes) => {
    * Inisialisasi model UserQuizAttempt dengan skema database.
    */
   UserQuizAttempt.init({
-    id: { // Pakai ID standar (INT AUTO_INCREMENT)
+    id: { // Menggunakan ID integer standar (AUTO_INCREMENT)
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
@@ -60,7 +60,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     score: {
       type: DataTypes.FLOAT,
-      allowNull: true, // Skor akhir, diisi saat status diubah menjadi 'completed'
+      allowNull: true, // Skor akhir, baru diisi saat status diubah menjadi 'completed'
     },
     started_at: {
       type: DataTypes.DATE,
@@ -74,7 +74,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'UserQuizAttempt',
-    timestamps: true, // Otomatis createdAt dan updatedAt
+    timestamps: true, // Otomatis menambah createdAt dan updatedAt
     // Tidak ada hook 'beforeCreate' karena ID sudah auto-increment
   });
   return UserQuizAttempt;

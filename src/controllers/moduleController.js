@@ -1,3 +1,4 @@
+// File: src/controllers/moduleController.js
 /**
  * @fileoverview Controller untuk mengelola CRUD (Create, Read, Update, Delete) entitas Module.
  * Controller ini diakses khusus oleh Admin.
@@ -5,12 +6,12 @@
 const db = require('../../models');
 const Module = db.Module;
 const Course = db.Course;
-const { sequelize } = require('../../models');
-const { generateCustomId } = require('../utils/idGenerator');
+// Impor sequelize untuk menjalankan transaksi database (diperlukan untuk reordering)
+const { sequelize } = require('../../models'); 
 
 /**
  * @function createModule
- * @description Membuat Module baru di dalam Course dan secara otomatis menentukan sequence_order.
+ * @description Membuat Module baru di dalam Course.
  * @route POST /api/v1/admin/courses/:course_id/modules
  *
  * @param {object} req - Objek request (params: course_id, body: { title, module_type, video_url, estimasi_waktu_menit, ... })
@@ -21,7 +22,7 @@ const createModule = async (req, res) => {
   const { course_id } = req.params;
   const {
     title,
-    module_type,
+    module_type, // 'video', 'ebook', 'quiz'
     video_url,
     ebook_url,
     quiz_id,
@@ -29,10 +30,12 @@ const createModule = async (req, res) => {
     estimasi_waktu_menit,
   } = req.body;
 
+  // Validasi input wajib
   if (!title || !module_type || !estimasi_waktu_menit) {
     return res.status(400).json({ message: 'Title, Module Type, dan Estimasi Waktu wajib diisi.' });
   }
 
+  // Validasi spesifik tipe modul
   if (module_type === 'video' && !video_url) {
      return res.status(400).json({ message: 'Video URL wajib diisi untuk modul video.' });
   }
@@ -42,11 +45,13 @@ const createModule = async (req, res) => {
   }
 
   try {
+    // 1. Cek apakah course-nya ada
     const course = await Course.findByPk(course_id);
     if (!course) {
       return res.status(404).json({ message: 'Course tidak ditemukan.' });
     }
 
+    // 2. Hitung sequence_order berikutnya
     const lastModule = await Module.findOne({
       where: { course_id: course_id },
       order: [['sequence_order', 'DESC']],
@@ -54,6 +59,8 @@ const createModule = async (req, res) => {
 
     const nextOrder = lastModule ? lastModule.sequence_order + 1 : 1;
 
+    // 3. Buat Module baru
+    // Catatan: ID (MD-XXXXXX) otomatis dibuat oleh Hook di model Module
     const newModule = await Module.create({
       id: generateCustomId('MD'),
       course_id: course_id,
@@ -101,9 +108,11 @@ const updateModule = async (req, res) => {
       return res.status(404).json({ message: 'Module tidak ditemukan.' });
     }
     
+    // Update data
     module.title = title || module.title;
     module.module_type = module_type || module.module_type;
     
+    // Reset field yang tidak relevan jika tipe berubah
     module.video_url = module.module_type === 'video' ? video_url : null;
     module.ebook_url = module.module_type === 'ebook' ? ebook_url : null;
     module.quiz_id = module.module_type === 'quiz' ? quiz_id : null;
@@ -168,7 +177,7 @@ const reorderModules = async (req, res) => {
         { 
           where: { 
             id: id,
-            course_id: course_id
+            course_id: course_id // Pastikan modul milik course yang benar
           },
           transaction: t,
         }

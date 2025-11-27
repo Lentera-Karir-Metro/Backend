@@ -25,6 +25,7 @@ module.exports = (sequelize, DataTypes) => {
       });
 
       // Sebuah Module bisa (secara opsional) terhubung ke (belongsTo) satu Quiz
+      // Ini terjadi jika module_type === 'quiz'
       Module.belongsTo(models.Quiz, {
         foreignKey: 'quiz_id',
         as: 'quiz', // Alias untuk relasi

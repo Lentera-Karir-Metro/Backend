@@ -1,7 +1,7 @@
 // File: src/routes/publicRoutes.js
 /**
  * @fileoverview Definisi rute untuk Katalog Publik (Public Read).
- * Rute ini dapat diakses oleh user yang BELUM terotentikasi.
+ * Rute ini dapat diakses oleh user yang BELUM terotentikasi (Tamu).
  * Rute diakses dengan prefix /api/v1.
  */
 const express = require('express');

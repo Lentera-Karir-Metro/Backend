@@ -1,26 +1,24 @@
 // File: src/utils/midtransClient.js
 /**
  * @fileoverview Utilitas untuk menginisialisasi client Midtrans.
- * Kita menggunakan dua jenis client untuk fungsi yang berbeda:
- * 1. CoreApi (untuk verifikasi webhook dan fitur backend lainnya).
- * 2. Snap (untuk membuat sesi pembayaran yang diakses oleh frontend).
+ * Menyediakan instance CoreApi dan Snap, serta helper function dengan logging yang lebih baik.
  */
 const midtransClient = require('midtrans-client');
+require('dotenv').config(); // Pastikan env terbaca
 
 // Ambil konfigurasi dari environment
 const serverKey = process.env.MIDTRANS_SERVER_KEY || '';
 const clientKey = process.env.MIDTRANS_CLIENT_KEY || '';
-const isProduction = (process.env.MIDTRANS_IS_PRODUCTION === 'true') || false;
+const isProduction = (process.env.MIDTRANS_IS_PRODUCTION === 'true');
 
-// Log configuration status untuk debugging
-console.log('[Midtrans Config]');
-console.log(`  serverKey: ${serverKey ? '✓ Set (' + serverKey.substring(0, 20) + '...)' : '✗ NOT SET'}`);
+// Log configuration status untuk debugging (Hanya muncul di server log)
+console.log('\n[Midtrans Config]');
+console.log(`  serverKey: ${serverKey ? '✓ Set (...' + serverKey.slice(-5) + ')' : '✗ NOT SET'}`);
 console.log(`  clientKey: ${clientKey ? '✓ Set' : '✗ NOT SET'}`);
-console.log(`  isProduction: ${isProduction}`);
+console.log(`  isProduction: ${isProduction}\n`);
 
 if (!serverKey) {
   console.error('[CRITICAL] MIDTRANS_SERVER_KEY is not configured in .env file!');
-  console.error('Webhook dan Checkout akan gagal. Pastikan .env memiliki MIDTRANS_SERVER_KEY=SB-Mid-server-xxxxx');
 }
 
 // Inisialisasi client Midtrans
@@ -36,65 +34,38 @@ const snap = new midtransClient.Snap({
   clientKey
 });
 
-// Wrapper helper untuk createTransaction yang memberikan error lebih informatif
+/**
+ * Wrapper helper untuk createTransaction yang memberikan error lebih informatif
+ */
 async function createSnapTransaction(params) {
   if (!serverKey) {
-    const err = new Error(
-      'MIDTRANS_SERVER_KEY is not configured. Add MIDTRANS_SERVER_KEY=SB-Mid-server-xxxxx to your .env file'
-    );
-    err.status = 'CONFIG_ERROR';
-    throw err;
+    throw new Error('MIDTRANS_SERVER_KEY is missing. Check your .env file.');
   }
   try {
     console.log('[Midtrans] Creating Snap transaction for order:', params.transaction_details?.order_id);
     return await snap.createTransaction(params);
   } catch (err) {
     // Perkaya error untuk debugging
-    const status = err && err.httpStatus ? err.httpStatus : undefined;
-    const body = err && err.apiResponse ? err.apiResponse : (err && err.response ? err.response : undefined);
-    
-    const errorMsg = `[Midtrans Snap Error] HTTP ${status || 'unknown'}. ` +
-      `Message: ${err.message}. ` +
-      `Response: ${typeof body === 'string' ? body : JSON.stringify(body)}. ` +
-      `Ensure MIDTRANS_SERVER_KEY in .env is correct and not expired.`;
-    
+    const errorMsg = `[Midtrans Snap Error] ${err.message}. Response: ${JSON.stringify(err.apiResponse || err)}`;
     console.error(errorMsg);
-    
-    const e = new Error(errorMsg);
-    e.original = err;
-    e.status = status;
-    e.apiResponse = body;
-    throw e;
+    throw new Error(errorMsg);
   }
 }
 
-// Wrapper helper untuk verifikasi notifikasi Midtrans
+/**
+ * Wrapper helper untuk verifikasi notifikasi Midtrans
+ */
 async function verifyCoreNotification(notificationBody) {
   if (!serverKey) {
-    const err = new Error(
-      'MIDTRANS_SERVER_KEY is not configured. Add MIDTRANS_SERVER_KEY=SB-Mid-server-xxxxx to your .env file'
-    );
-    err.status = 'CONFIG_ERROR';
-    throw err;
+    throw new Error('MIDTRANS_SERVER_KEY is missing. Check your .env file.');
   }
   try {
     console.log('[Midtrans] Verifying notification for order:', notificationBody.order_id || 'unknown');
     return await coreApi.transaction.notification(notificationBody);
   } catch (err) {
-    const status = err && err.httpStatus ? err.httpStatus : undefined;
-    const body = err && err.apiResponse ? err.apiResponse : (err && err.response ? err.response : undefined);
-    
-    const errorMsg = `[Midtrans CoreApi Notification Error] HTTP ${status || 'unknown'}. ` +
-      `Message: ${err.message}. ` +
-      `Response: ${typeof body === 'string' ? body : JSON.stringify(body)}. ` +
-      `Ensure MIDTRANS_SERVER_KEY in .env is correct and matches the transaction.`;
-    
+    const errorMsg = `[Midtrans CoreApi Error] ${err.message}. Response: ${JSON.stringify(err.apiResponse || err)}`;
     console.error(errorMsg);
-    
-    const e = new Error(errorMsg);
-    e.original = err;
-    e.status = status;
-    throw e;
+    throw new Error(errorMsg);
   }
 }
 

@@ -2,7 +2,8 @@
 'use strict';
 const { Model } = require('sequelize');
 // Impor helper untuk membuat ID kustom (misal: LT-XXXXXX)
-const { generateCustomId } = require('../src/utils/idGenerator');
+// Path ini sudah benar: naik ke root (..), masuk src, masuk utils
+const { generateCustomId } = require('../src/utils/idGenerator'); 
 
 module.exports = (sequelize, DataTypes) => {
   /**
@@ -68,7 +69,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     username: {
       type: DataTypes.STRING,
-      allowNull: false, // Diambil dari 'username' Supabase saat sinkronisasi
+      allowNull: false, // Diambil dari 'username' Supabase saat sinkronisasi (sebelumnya nama_lengkap)
     },
     role: {
       type: DataTypes.ENUM('user', 'admin'),
