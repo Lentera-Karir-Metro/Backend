@@ -1,4 +1,4 @@
-// File: migrations/202511160005-create-question.js
+// File: migrations/202511160006-create-option.js
 'use strict';
 
 /**
@@ -8,34 +8,39 @@
 
 module.exports = {
   /**
-   * Fungsi 'up' dieksekusi ketika migrasi dijalankan.
-   * Fungsi ini bertanggung jawab untuk membuat tabel 'Questions'.
-   * Tabel ini menyimpan setiap pertanyaan yang terkait dengan 'Quiz'.
+   * Fungsi 'up' dijalankan ketika migrasi dieksekusi.
+   * Membuat tabel 'Options' yang berisi pilihan jawaban (A, B, C, D)
+   * yang terkait dengan tabel 'Questions'.
    *
-   * @param {QueryInterface} queryInterface - Interface Query Sequelize
-   * @param {Sequelize} Sequelize - Pustaka Sequelize
+   * @param {QueryInterface} queryInterface
+   * @param {Sequelize} Sequelize
    */
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('Questions', {
+    await queryInterface.createTable('Options', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER // Menggunakan ID integer standar, bukan kustom
+        type: Sequelize.INTEGER
       },
-      quiz_id: {
-        type: Sequelize.STRING(16),
+      question_id: {
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'Quizzes', // Nama tabel induk
-          key: 'id',
+          model: 'Questions',
+          key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE', // Jika Kuis dihapus, semua pertanyaan di dalamnya ikut terhapus
+        onDelete: 'CASCADE'
       },
-      question_text: {
-        type: Sequelize.TEXT, // Teks lengkap dari pertanyaan
+      option_text: {
+        type: Sequelize.TEXT,
+        allowNull: false
+      },
+      is_correct: {
+        type: Sequelize.BOOLEAN,
         allowNull: false,
+        defaultValue: false
       },
       createdAt: {
         allowNull: false,
@@ -49,13 +54,13 @@ module.exports = {
   },
 
   /**
-   * Fungsi 'down' dieksekusi ketika migrasi dibatalkan (rollback).
-   * Fungsi ini bertanggung jawab untuk menghapus tabel 'Questions'.
+   * Fungsi 'down' dieksekusi ketika migrasi di-rollback.
+   * Menghapus tabel 'Options'.
    *
-   * @param {QueryInterface} queryInterface - Interface Query Sequelize
-   * @param {Sequelize} Sequelize - Pustaka Sequelize
+   * @param {QueryInterface} queryInterface
+   * @param {Sequelize} Sequelize
    */
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('Questions');
+    await queryInterface.dropTable('Options');
   }
 };

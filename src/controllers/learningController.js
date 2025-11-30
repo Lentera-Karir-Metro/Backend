@@ -1,10 +1,9 @@
 // File: src/controllers/learningController.js
 /**
  * @fileoverview Controller "Palugada" untuk Ruang Belajar.
- * Menyediakan data super lengkap (termasuk URL konten & data dummy UI)
+ * Menyediakan data super lengkap dari Database (bukan dummy lagi)
  * agar Frontend tidak perlu request berulang kali.
  */
-
 const db = require('../../models');
 const { 
   LearningPath, 
@@ -14,14 +13,11 @@ const {
   UserModuleProgress,
   Sequelize
 } = db;
-
-// Menggunakan operator dari Sequelize
-const Op = Sequelize.Op;
+const { Op } = Sequelize;
 
 /**
  * @function getMyDashboard
  * @description Mengambil daftar semua Learning Path milik user.
- * Termasuk data dummy (progress, rating) untuk kebutuhan tampilan Card UI.
  * @route GET /api/v1/learn/dashboard
  */
 const getMyDashboard = async (req, res) => {
@@ -31,20 +27,21 @@ const getMyDashboard = async (req, res) => {
       where: { user_id: userId, status: 'success' },
       include: {
         model: LearningPath,
-        attributes: ['id', 'title', 'description', 'thumbnail_url', 'price']
+        // Mengambil data ASLI dari database (Rating, Kategori, Level, dll)
+        attributes: [
+          'id', 'title', 'description', 'thumbnail_url', 'price', 
+          'rating', 'category','discount_amount', 'level', 'total_students'
+        ]
       },
       order: [['enrolled_at', 'DESC']]
     });
 
-    // Transformasi data: Inject data tambahan agar dashboard terlihat penuh sesuai desain
+    // Transformasi data untuk UI
     const learningPaths = enrollments.map(en => {
         const lp = en.LearningPath.toJSON();
-        
-        // Data Dummy untuk UI Dashboard
-        lp.progress_percent = 0; // Nanti bisa dikembangkan logic hitung persen asli
-        lp.category = "Technology"; 
-        lp.rating = 4.8; 
-        lp.total_modules = 12; // Angka dummy
+    
+        lp.progress_percent = 0; 
+        lp.total_modules = 12; // Bisa diganti logika count module nanti jika perlu
         
         return lp;
     });
@@ -58,7 +55,7 @@ const getMyDashboard = async (req, res) => {
 /**
  * @function getLearningPathContent
  * @description API Utama Ruang Belajar. 
- * Mengirim struktur materi + URL Konten (Video/PDF) + Status Lock + Data UI (Mentor).
+ * Mengambil data REAL dari DB, menyusun objek Mentor, dan menghitung status Lock.
  * @route GET /api/v1/learn/learning-paths/:lp_id
  */
 const getLearningPathContent = async (req, res) => {
@@ -66,7 +63,7 @@ const getLearningPathContent = async (req, res) => {
   const { lp_id } = req.params;
 
   try {
-    // 1. Validasi: User harus sudah beli (Enrollment Success)
+    // 1. Validasi: User harus sudah beli
     const enrollment = await UserEnrollment.findOne({
       where: { user_id: userId, learning_path_id: lp_id, status: 'success' }
     });
@@ -74,15 +71,14 @@ const getLearningPathContent = async (req, res) => {
       return res.status(403).json({ message: 'Akses ditolak. Anda belum terdaftar di kelas ini.' });
     }
 
-    // 2. Ambil progress user (modul apa saja yang sudah selesai)
+    // 2. Ambil progress user
     const completedProgress = await UserModuleProgress.findAll({
       where: { user_id: userId },
       attributes: ['module_id']
     });
     const completedModuleIds = new Set(completedProgress.map(p => p.module_id));
 
-    // 3. Ambil Data Lengkap (TERMASUK VIDEO_URL & EBOOK_URL)
-    // Kita TIDAK melakukan exclude agar Frontend bisa memutar kontennya.
+    // 3. Ambil Data Lengkap dari DB
     const learningPath = await LearningPath.findByPk(lp_id, {
       include: {
         model: Course,
@@ -90,7 +86,6 @@ const getLearningPathContent = async (req, res) => {
         include: {
           model: Module,
           as: 'modules',
-          // attributes: [] <-- Dikosongkan agar semua kolom (termasuk url) terambil
         },
       },
       order: [
@@ -101,21 +96,21 @@ const getLearningPathContent = async (req, res) => {
     
     if (!learningPath) return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
 
-    // 4. MODIFIKASI JSON (Inject Data UI & Hitung Logika Lock)
+    // 4. FORMAT DATA JSON
     const lpData = learningPath.toJSON();
 
-    // --- INJECT DATA DUMMY (Agar sesuai Desain UI Frontend) ---
-    // Karena database kita belum punya tabel Mentor/Rating, kita hardcode sementara.
+    // TRANSFORMASI DATA MENTOR (Kolom DB -> Objek UI)
+    // Kita ubah kolom flat (mentor_name) menjadi object (mentor { name }) agar Frontend rapi
     lpData.mentor = {
-        name: "Ayu Putri",
-        job_title: "Co-Founder @bijaktechno, Lecturer",
-        avatar_url: "https://ui-avatars.com/api/?name=Ayu+Putri&background=random" // Gambar placeholder
+        name: lpData.mentor_name || "Tim Lentera Karir",
+        job_title: lpData.mentor_title || "Expert Instructor",
+        avatar_url: lpData.mentor_avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(lpData.mentor_name || "Mentor")}&background=random`
     };
-    lpData.rating = 4.8;
-    lpData.total_students = 256;
-    lpData.category = "Digital Marketing";
-    lpData.level = "Beginner";
-    // ---------------------------------------------------------
+
+    // Hapus kolom flat agar response bersih (opsional)
+    delete lpData.mentor_name;
+    delete lpData.mentor_title;
+    delete lpData.mentor_avatar_url;
 
     // 5. LOGIKA PENGUNCIAN (Lock System)
     let isPreviousCourseCompleted = true; 
@@ -125,23 +120,21 @@ const getLearningPathContent = async (req, res) => {
       let completedModules = 0;
       let isPreviousModuleCompleted = true; 
 
-      // Status Lock Course (Bab)
+      // Status Lock Course
       course.is_locked = !isPreviousCourseCompleted;
 
       for (const module of course.modules) {
-        // Cek apakah modul ini sudah selesai
+        // Cek Completed
         module.is_completed = completedModuleIds.has(module.id);
         if (module.is_completed) completedModules++;
         
-        // Cek apakah modul ini terkunci
-        // Syarat Terbuka: (Bab tidak terkunci) DAN (Modul sebelumnya sudah selesai ATAU ini modul pertama)
+        // Cek Locked
         module.is_locked = course.is_locked || !isPreviousModuleCompleted; 
         
-        // Siapkan status untuk iterasi berikutnya
         isPreviousModuleCompleted = module.is_completed;
       }
       
-      // Cek apakah satu bab sudah selesai semua
+      // Cek Course Completed
       course.is_completed = (totalModules > 0 && completedModules === totalModules);
       isPreviousCourseCompleted = course.is_completed;
     }
@@ -156,7 +149,7 @@ const getLearningPathContent = async (req, res) => {
 
 /**
  * @function markModuleAsComplete
- * @description Menandai modul sebagai selesai. Membuka kunci modul berikutnya.
+ * @description Menandai modul sebagai selesai.
  * @route POST /api/v1/learn/modules/:module_id/complete
  */
 const markModuleAsComplete = async (req, res) => {
@@ -180,8 +173,7 @@ const markModuleAsComplete = async (req, res) => {
     });
     if (!enrollment) return res.status(403).json({ message: 'Akses ditolak.' });
 
-    // 3. Validasi Urutan (Anti-Cheat Sederhana)
-    // Cek apakah modul sebelumnya sudah selesai
+    // 3. Validasi Urutan (Anti-Cheat)
     if (module.sequence_order > 1) {
       const prevModule = await Module.findOne({
         where: { course_id: module.course_id, sequence_order: module.sequence_order - 1 }
@@ -190,17 +182,17 @@ const markModuleAsComplete = async (req, res) => {
         const prevProgress = await UserModuleProgress.findOne({
           where: { user_id: userId, module_id: prevModule.id }
         });
-        if (!prevProgress) return res.status(403).json({ message: 'Modul sebelumnya belum selesai. Harap kerjakan berurutan.' });
+        if (!prevProgress) return res.status(403).json({ message: 'Modul sebelumnya belum selesai.' });
       }
     }
 
     // 4. Simpan Progress
-    const [progress, created] = await UserModuleProgress.findOrCreate({
+    await UserModuleProgress.findOrCreate({
       where: { user_id: userId, module_id: module.id },
       defaults: { is_completed: true }
     });
     
-    return res.status(200).json({ message: 'Modul berhasil diselesaikan.' });
+    return res.status(200).json({ message: 'Modul selesai.' });
 
   } catch (err) {
     console.error('Error saat update progress:', err.message);
@@ -213,3 +205,4 @@ module.exports = {
   getLearningPathContent,
   markModuleAsComplete,
 };
+

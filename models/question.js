@@ -1,62 +1,54 @@
-// File: models/question.js
 'use strict';
 const { Model } = require('sequelize');
+const { generateCustomId } = require('../src/utils/idGenerator');
 
 module.exports = (sequelize, DataTypes) => {
-  /**
-   * Model Question
-   * Merepresentasikan satu pertanyaan di dalam sebuah Quiz.
-   * Model ini menggunakan ID integer standar (AUTO_INCREMENT).
-   */
   class Question extends Model {
-    /**
-     * Helper method untuk mendefinisikan relasi.
-     * Method ini otomatis dipanggil oleh `models/index.js`.
-     * @param {object} models - Kumpulan semua model yang terdefinisi
-     */
     static associate(models) {
-      // Sebuah Pertanyaan adalah bagian dari (belongsTo) satu Quiz
       Question.belongsTo(models.Quiz, {
         foreignKey: 'quiz_id',
-        as: 'quiz', // Alias untuk relasi
+        as: 'quiz',
       });
-
-      // Sebuah Pertanyaan memiliki (hasMany) banyak Option (pilihan jawaban)
       Question.hasMany(models.Option, {
         foreignKey: 'question_id',
-        as: 'options', // Alias untuk relasi
+        as: 'options',
       });
     }
   }
 
-  /**
-   * Inisialisasi model Question dengan skema database.
-   */
   Question.init({
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(16),
       allowNull: false,
-      autoIncrement: true, // Menggunakan ID standar yang bertambah otomatis
       primaryKey: true,
+      unique: true,
     },
     quiz_id: {
-      type: DataTypes.STRING(16), // FK ke ID kustom Quiz (QZ-XXXXXX)
+      type: DataTypes.STRING(16),
       allowNull: false,
       references: {
-        model: 'Quizzes', // Relasi ke tabel Quizzes
-        key: 'id',
+        model: 'Quizzes',
+        key: 'id'
       },
       onUpdate: 'CASCADE',
-      onDelete: 'CASCADE', // Jika Quiz dihapus, Pertanyaan ikut terhapus
+      onDelete: 'CASCADE'
     },
     question_text: {
-      type: DataTypes.TEXT, // Teks lengkap dari pertanyaan
-      allowNull: false,
-    },
+      type: DataTypes.TEXT,
+      allowNull: false
+    }
   }, {
     sequelize,
     modelName: 'Question',
-    timestamps: true, // Otomatis menambah createdAt dan updatedAt
+    timestamps: true,
+    hooks: {
+      beforeCreate: (question, options) => {
+        if (!question.id) {
+          question.id = generateCustomId('QN');
+        }
+      }
+    }
   });
+
   return Question;
 };

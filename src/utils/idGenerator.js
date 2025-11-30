@@ -1,25 +1,20 @@
-// File: src/utils/idGenerator.js
+// src/utils/idGenerator.js
 /**
- * @fileoverview Utilitas untuk menghasilkan ID Kustom (VARCHAR(16))
- * yang diperlukan oleh entitas utama database.
+ * generateCustomId(prefix)
+ * Menghasilkan ID dengan format PREFIX-XXXXXX (6 digit angka).
+ * Contoh: LT-123456
  */
 
-/**
- * @function generateCustomId
- * @description Menghasilkan ID unik kustom dengan format PREFIX-XXXXXX.
- * ID ini digunakan di 'beforeCreate' hook pada model Sequelize.
- * * @param {string} prefix - Prefix 2-5 karakter (misal: "LT" untuk User, "LP" untuk LearningPath)
- * @returns {string} ID kustom yang unik (misal: "LP-J9F6A3")
- */
+const pad = (num, size) => {
+  let s = String(num);
+  while (s.length < size) s = '0' + s;
+  return s;
+};
+
 const generateCustomId = (prefix) => {
-  // 1. Menghasilkan string acak dalam basis 36 (mengandung angka dan huruf)
-  const suffix = Math.random()
-    .toString(36)
-    .substring(2, 8) // 2. Mengambil 6 karakter acak
-    .toUpperCase(); // 3. Mengubah menjadi huruf kapital
-    
-  // Gabungkan prefix dan suffix
-  return `${prefix}-${suffix}`;
+  // angka 6 digit acak (100000..999999) — memastikan leading zero tidak terjadi
+  const suffix = Math.floor(100000 + Math.random() * 900000);
+  return `${prefix}-${pad(suffix, 6)}`;
 };
 
 module.exports = { generateCustomId };

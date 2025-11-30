@@ -1,43 +1,68 @@
 // File: migrations/202511160001-create-learning-path.js
 'use strict';
 
-/**
- * @typedef {import('sequelize').QueryInterface} QueryInterface
- * @typedef {import('sequelize').Sequelize} Sequelize
- */
-
 module.exports = {
-  /**
-   * Fungsi 'up' dieksekusi ketika migrasi dijalankan.
-   * Fungsi ini bertanggung jawab untuk membuat tabel 'LearningPaths'.
-   * 'LearningPath' adalah entitas utama yang akan dibeli oleh pengguna.
-   *
-   * @param {QueryInterface} queryInterface - Interface Query Sequelize
-   * @param {Sequelize} Sequelize - Pustaka Sequelize
-   */
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('LearningPaths', {
       id: {
         allowNull: false,
         primaryKey: true,
-        type: Sequelize.STRING(16), // ID Kustom (misal: LP-XXXXXX)
+        type: Sequelize.STRING(16),
       },
       title: {
         type: Sequelize.STRING,
-        allowNull: false, // Judul Learning Path (misal: "Belajar Backend Node.js")
+        allowNull: false,
       },
       description: {
-        type: Sequelize.TEXT, // Deskripsi lengkap tentang learning path
+        type: Sequelize.TEXT,
       },
       price: {
-        type: Sequelize.DECIMAL(10, 2), // Menyimpan harga (misal: 150000.00)
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0.00,
       },
       thumbnail_url: {
         type: Sequelize.STRING,
-        allowNull: true, // URL publik ke gambar thumbnail di Supabase Storage
+        allowNull: true,
       },
+      discount_amount: {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0.00, // Default 0 (Tidak ada diskon)
+      },
+      rating: {
+        type: Sequelize.FLOAT(2, 1), // Tipe Float (misal: 4.5)
+        allowNull: false,
+        defaultValue: 0.0,
+      },
+      review_count: {
+        type: Sequelize.INTEGER, // Tipe Angka Bulat (misal: 120)
+        allowNull: false,
+        defaultValue: 0,
+      },
+      category: {
+        type: Sequelize.STRING, // Contoh isi: "Programming", "Design", "Marketing"
+        allowNull: false,
+        defaultValue: "General",
+      },
+      level: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        defaultValue: "Beginner",
+      },
+      mentor_name: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+      mentor_title: {
+        type: Sequelize.STRING, // Contoh: "Product Manager at Gojek"
+        allowNull: true,
+      },
+      mentor_avatar_url: {
+        type: Sequelize.STRING, // Link foto mentor
+        allowNull: true,
+      },
+      // --------------------------------
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE
@@ -48,14 +73,6 @@ module.exports = {
       }
     });
   },
-
-  /**
-   * Fungsi 'down' dieksekusi ketika migrasi dibatalkan (rollback).
-   * Fungsi ini bertanggung jawab untuk menghapus tabel 'LearningPaths'.
-   *
-   * @param {QueryInterface} queryInterface - Interface Query Sequelize
-   * @param {Sequelize} Sequelize - Pustaka Sequelize
-   */
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable('LearningPaths');
   }

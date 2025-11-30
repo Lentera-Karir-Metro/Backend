@@ -4,21 +4,12 @@ const { LearningPath, Course, Module } = db;
 
 const getPublicLearningPaths = async (req, res) => {
   try {
+    // Data rating & review_count akan otomatis terambil dari database
     const learningPaths = await LearningPath.findAll({
-      attributes: ['id', 'title', 'description', 'price', 'thumbnail_url'],
+      attributes: ['id', 'title', 'description', 'price', 'thumbnail_url', 'rating', 'review_count', 'category', 'discount_amount'],
       order: [['createdAt', 'DESC']],
     });
-
-    // --- INJECT DUMMY DATA (SOLUSI) ---
-    const enrichedData = learningPaths.map(lp => {
-        const data = lp.toJSON();
-        data.rating = 4.8;            // Data Dummy
-        data.total_students = 120 + Math.floor(Math.random() * 100); // Random angka biar beda
-        data.category = "Teknologi";  // Data Dummy
-        return data;
-    });
-
-    return res.status(200).json(enrichedData);
+    return res.status(200).json(learningPaths);
   } catch (err) {
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
@@ -27,7 +18,8 @@ const getPublicLearningPaths = async (req, res) => {
 const getPublicLearningPathDetail = async (req, res) => {
   try {
     const learningPath = await LearningPath.findByPk(req.params.id, {
-      // ... (include Courses & Modules sama seperti sebelumnya) ...
+      // Ambil data lengkap termasuk rating & review_count
+      attributes: ['id', 'title', 'description', 'price', 'thumbnail_url', 'rating', 'review_count', 'category', 'discount_amount'],
       include: {
         model: Course,
         as: 'courses',
@@ -35,7 +27,7 @@ const getPublicLearningPathDetail = async (req, res) => {
         include: {
           model: Module,
           as: 'modules',
-          attributes: ['id', 'title', 'module_type', 'sequence_order', 'estimasi_waktu_menit'], // Tambah estimasi waktu
+          attributes: ['id', 'title', 'module_type', 'sequence_order', 'estimasi_waktu_menit'],
         },
       },
       order: [
@@ -46,18 +38,8 @@ const getPublicLearningPathDetail = async (req, res) => {
 
     if (!learningPath) return res.status(404).json({ message: 'Not found' });
 
-    // --- INJECT DUMMY DATA UNTUK DETAIL KELAS ---
-    const data = learningPath.toJSON();
-    data.rating = 4.9;
-    data.total_students = 340;
-    data.level = "Beginner";
-    data.mentor = {
-        name: "Ayu Putri",
-        role: "Senior Product Manager",
-        avatar_url: "https://ui-avatars.com/api/?name=Ayu+Putri&background=random"
-    };
-
-    return res.status(200).json(data);
+    // Return data asli database
+    return res.status(200).json(learningPath);
   } catch (err) {
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }

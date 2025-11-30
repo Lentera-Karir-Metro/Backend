@@ -151,12 +151,13 @@ const addQuestionToQuiz = async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz tidak ditemukan.' });
     }
-    // ID Question adalah AUTO_INCREMENT, jadi tidak perlu generate ID manual
+
+    // create: model Question akan generate id via beforeCreate hook
     const question = await Question.create({
-      id: generateCustomId('QN'),
       quiz_id: quiz_id,
       question_text,
     });
+
     return res.status(201).json(question);
   } catch (err) {
     return res.status(500).json({ message: 'Server error.', error: err.message });
@@ -228,13 +229,14 @@ const addOptionToQuestion = async (req, res) => {
     if (!question) {
       return res.status(404).json({ message: 'Pertanyaan tidak ditemukan.' });
     }
-    // ID Option adalah AUTO_INCREMENT, jadi tidak perlu generate ID manual
+
+    // create: model Option akan generate id via beforeCreate hook
     const option = await Option.create({
-      id: generateCustomId('OP'),
       question_id: question_id,
       option_text,
-      is_correct: is_correct || false,
+      is_correct: !!is_correct,
     });
+
     return res.status(201).json(option);
   } catch (err) {
     return res.status(500).json({ message: 'Server error.', error: err.message });

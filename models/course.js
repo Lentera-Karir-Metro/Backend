@@ -39,6 +39,8 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       primaryKey: true,
       unique: true,
+      defaultValue: () => generateCustomId('CR')
+      
     },
     learning_path_id: {
       type: DataTypes.STRING(16),
