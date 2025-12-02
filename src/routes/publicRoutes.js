@@ -13,6 +13,15 @@ const {
   getPublicLearningPathDetail,
 } = require('../controllers/publicCatalogController');
 
+// Impor controller untuk Articles
+const {
+  getAllArticles,
+  getArticleById,
+  getLatestArticles,
+  getCategories,
+  getArticlesByCategory
+} = require('../controllers/articleController');
+
 // --- Pemasangan Middleware ---
 /**
  * Rute di bawah ini bersifat publik (Public Access) dan
@@ -34,5 +43,40 @@ router.get('/catalog/learning-paths', getPublicLearningPaths);
  * @description Mengambil detail satu Learning Path, termasuk struktur kurikulum.
  */
 router.get('/catalog/learning-paths/:id', getPublicLearningPathDetail);
+
+/**
+ * @method GET
+ * @route /articles
+ * @description Mengambil semua artikel dengan pagination dan search (Public Access)
+ */
+router.get('/articles', getAllArticles);
+
+/**
+ * @method GET
+ * @route /articles/latest
+ * @description Mengambil artikel terbaru (Public Access)
+ */
+router.get('/articles/latest', getLatestArticles);
+
+/**
+ * @method GET
+ * @route /articles/categories
+ * @description Mengambil semua kategori artikel (Public Access)
+ */
+router.get('/articles/categories', getCategories);
+
+/**
+ * @method GET
+ * @route /articles/category/:category
+ * @description Mengambil artikel berdasarkan kategori (Public Access)
+ */
+router.get('/articles/category/:category', getArticlesByCategory);
+
+/**
+ * @method GET
+ * @route /articles/:id
+ * @description Mengambil detail artikel berdasarkan ID (Public Access)
+ */
+router.get('/articles/:id', getArticleById);
 
 module.exports = router;

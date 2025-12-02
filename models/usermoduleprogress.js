@@ -17,9 +17,15 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // Progres ini milik (belongsTo) satu User
-      UserModuleProgress.belongsTo(models.User, { foreignKey: 'user_id' });
+      UserModuleProgress.belongsTo(models.User, { 
+        foreignKey: 'user_id',
+        as: 'user'
+      });
       // Progres ini merujuk pada (belongsTo) satu Module
-      UserModuleProgress.belongsTo(models.Module, { foreignKey: 'module_id' });
+      UserModuleProgress.belongsTo(models.Module, { 
+        foreignKey: 'module_id',
+        as: 'module'
+      });
     }
   }
 

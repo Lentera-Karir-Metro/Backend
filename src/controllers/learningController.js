@@ -23,32 +23,68 @@ const { Op } = Sequelize;
 const getMyDashboard = async (req, res) => {
   const userId = req.user.id;
   try {
-    const enrollments = await UserEnrollment.findAll({
-      where: { user_id: userId, status: 'success' },
-      include: {
-        model: LearningPath,
-        // Mengambil data ASLI dari database (Rating, Kategori, Level, dll)
-        attributes: [
-          'id', 'title', 'description', 'thumbnail_url', 'price', 
-          'rating', 'category','discount_amount', 'level', 'total_students'
-        ]
-      },
-      order: [['enrolled_at', 'DESC']]
-    });
-
-    // Transformasi data untuk UI
-    const learningPaths = enrollments.map(en => {
-        const lp = en.LearningPath.toJSON();
+    console.log('=== GET MY DASHBOARD START ===');
+    console.log('User ID:', userId);
     
-        lp.progress_percent = 0; 
-        lp.total_modules = 12; // Bisa diganti logika count module nanti jika perlu
-        
-        return lp;
-    });
+    // Step 1: Query enrollments dengan raw query untuk debugging
+    const enrollments = await db.sequelize.query(
+      `SELECT id, learning_path_id, enrolled_at 
+       FROM UserEnrollments 
+       WHERE user_id = :userId AND status = 'success'
+       ORDER BY enrolled_at DESC`,
+      {
+        replacements: { userId },
+        type: db.Sequelize.QueryTypes.SELECT
+      }
+    );
 
-    return res.status(200).json(learningPaths);
+    console.log('Enrollments found:', enrollments.length);
+    console.log('Enrollments:', JSON.stringify(enrollments, null, 2));
+
+    if (enrollments.length === 0) {
+      console.log('No enrollments found, returning empty array');
+      return res.status(200).json([]);
+    }
+
+    // Step 2: Get learning path IDs
+    const learningPathIds = enrollments.map(en => en.learning_path_id);
+    console.log('Learning Path IDs:', learningPathIds);
+
+    // Step 3: Query learning paths dengan raw query
+    const learningPaths = await db.sequelize.query(
+      `SELECT id, title, description, thumbnail_url, price, rating, 
+              category, discount_amount, level, review_count
+       FROM LearningPaths 
+       WHERE id IN (:ids)`,
+      {
+        replacements: { ids: learningPathIds },
+        type: db.Sequelize.QueryTypes.SELECT
+      }
+    );
+
+    console.log('Learning Paths found:', learningPaths.length);
+    console.log('Learning Paths:', JSON.stringify(learningPaths, null, 2));
+
+    // Step 4: Add progress data
+    const result = learningPaths.map(lp => ({
+      ...lp,
+      progress_percent: 0,
+      total_modules: 12
+    }));
+
+    console.log('=== GET MY DASHBOARD SUCCESS ===');
+    return res.status(200).json(result);
+    
   } catch (err) {
-    return res.status(500).json({ message: 'Server error.', error: err.message });
+    console.error('=== GET MY DASHBOARD ERROR ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error.', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
@@ -200,9 +236,78 @@ const markModuleAsComplete = async (req, res) => {
   }
 };
 
+/**
+ * @function getMyEbooks
+ * @description Mengambil semua ebook yang dimiliki user dari course yang telah dibeli
+ * @route GET /api/v1/learn/ebooks
+ */
+const getMyEbooks = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    console.log('=== GET MY EBOOKS START ===');
+    console.log('User ID:', userId);
+
+    // Step 1: Query enrollments dengan raw query
+    const enrollments = await db.sequelize.query(
+      `SELECT learning_path_id 
+       FROM UserEnrollments 
+       WHERE user_id = :userId AND status = 'success'`,
+      {
+        replacements: { userId },
+        type: db.Sequelize.QueryTypes.SELECT
+      }
+    );
+
+    console.log('Enrollments found:', enrollments.length);
+
+    if (enrollments.length === 0) {
+      console.log('No enrollments, returning empty array');
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const learningPathIds = enrollments.map(e => e.learning_path_id);
+    console.log('Learning Path IDs:', learningPathIds);
+
+    // Step 2: Query ebooks dengan JOIN (JOIN LearningPaths untuk thumbnail)
+    const ebooks = await db.sequelize.query(
+      `SELECT 
+        m.id, 
+        m.title, 
+        m.ebook_url,
+        c.title as course_title,
+        lp.thumbnail_url as course_thumbnail
+       FROM Modules m
+       JOIN Courses c ON m.course_id = c.id
+       JOIN LearningPaths lp ON c.learning_path_id = lp.id
+       WHERE c.learning_path_id IN (:ids)
+       AND m.module_type = 'ebook'
+       ORDER BY c.id, m.sequence_order ASC`,
+      {
+        replacements: { ids: learningPathIds },
+        type: db.Sequelize.QueryTypes.SELECT
+      }
+    );
+
+    console.log('Ebooks found:', ebooks.length);
+    console.log('=== GET MY EBOOKS SUCCESS ===');
+
+    return res.status(200).json({ success: true, data: ebooks });
+  } catch (err) {
+    console.error('=== GET MY EBOOKS ERROR ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error.', 
+      error: err.message 
+    });
+  }
+};
+
 module.exports = {
   getMyDashboard,
   getLearningPathContent,
   markModuleAsComplete,
+  getMyEbooks,
 };
 

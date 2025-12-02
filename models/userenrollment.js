@@ -24,6 +24,16 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // Relasi 'belongsToMany' didefinisikan di model User dan LearningPath
       // yang menunjuk ke model 'UserEnrollment' ini sebagai 'through'.
+      
+      // Tambahan: relasi belongsTo untuk query yang include
+      UserEnrollment.belongsTo(models.User, { 
+        foreignKey: 'user_id',
+        as: 'User'
+      });
+      UserEnrollment.belongsTo(models.LearningPath, { 
+        foreignKey: 'learning_path_id',
+        as: 'LearningPath'
+      });
     }
   }
 

@@ -84,6 +84,12 @@ app.use('/api/v1', paymentRoutes); // Checkout Pembayaran (Wajib Login)
 const learningRoutes = require('./src/routes/learningRoutes');
 app.use('/api/v1', learningRoutes); // Progres Belajar & Kuis (Wajib Login)
 
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
+app.use('/api/v1/dashboard', dashboardRoutes); // Dashboard User (Wajib Login)
+
+const certificateRoutes = require('./src/routes/certificateRoutes');
+app.use('/api/v1/certificates', certificateRoutes); // Certificate User (Wajib Login)
+
 
 // 6. Jalankan Server & Tes Koneksi Database
 /**

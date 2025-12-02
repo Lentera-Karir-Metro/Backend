@@ -79,9 +79,10 @@ const createCheckoutSession = async (req, res) => {
       enrollment.status = 'pending';
       await enrollment.save();
     } else {
-      // Buat baru
-      // Note: ID (EN-XXXXXX) otomatis dibuat oleh Hook di Model, tidak perlu generate manual
+      // Buat baru - Generate ID secara eksplisit
+      const enrollmentId = generateCustomId('EN'); // Generate ID: EN-XXXXXX
       enrollment = await UserEnrollment.create({
+        id: enrollmentId, // Set ID secara eksplisit
         user_id: userId,
         learning_path_id: learningPath.id,
         midtrans_transaction_id: orderId,

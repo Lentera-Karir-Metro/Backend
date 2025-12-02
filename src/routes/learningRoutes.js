@@ -13,6 +13,7 @@ const {
   getMyDashboard,
   getLearningPathContent,
   markModuleAsComplete,
+  getMyEbooks,
 } = require('../controllers/learningController');
 
 // Impor controller untuk Logika Kuis (Start, Save, Submit)
@@ -40,6 +41,13 @@ router.use(protect);
  * @description Mengambil daftar Learning Path yang sudah dibeli/di-enroll oleh user.
  */
 router.get('/learn/dashboard', getMyDashboard);
+
+/**
+ * @method GET
+ * @route /learn/ebooks
+ * @description Mengambil semua ebook yang dimiliki user dari course yang telah dibeli.
+ */
+router.get('/learn/ebooks', getMyEbooks);
 
 /**
  * @method GET
