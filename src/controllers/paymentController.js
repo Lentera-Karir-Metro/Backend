@@ -57,38 +57,33 @@ const createCheckoutSession = async (req, res) => {
     }
     // -------------------------------------
 
-    // 2. Cek apakah user sudah terdaftar
+    // 2. Cek apakah user sudah terdaftar DI LEARNING PATH INI
     const existingEnrollment = await UserEnrollment.findOne({
-      where: { user_id: userId, learning_path_id: learningPath.id }
+      where: { 
+        user_id: userId, 
+        learning_path_id: learningPath.id,
+        status: 'success' // Hanya cek yang sudah success
+      }
     });
 
     // Jika sudah sukses bayar, tolak
-    if (existingEnrollment && existingEnrollment.status === 'success') {
+    if (existingEnrollment) {
       return res.status(409).json({ message: 'Anda sudah terdaftar di learning path ini.' });
     }
 
     // 3. Buat 'order_id' unik
     const orderId = `LENTERA-${generateCustomId('TRX')}`;
 
-    // 4. Buat/Update Record Enrollment (Status: Pending)
-    let enrollment;
-    if (existingEnrollment) {
-      // Update transaksi lama yang gagal/pending
-      enrollment = existingEnrollment;
-      enrollment.midtrans_transaction_id = orderId; 
-      enrollment.status = 'pending';
-      await enrollment.save();
-    } else {
-      // Buat baru - Generate ID secara eksplisit
-      const enrollmentId = generateCustomId('EN'); // Generate ID: EN-XXXXXX
-      enrollment = await UserEnrollment.create({
-        id: enrollmentId, // Set ID secara eksplisit
-        user_id: userId,
-        learning_path_id: learningPath.id,
-        midtrans_transaction_id: orderId,
-        status: 'pending',
-      });
-    }
+    // 4. Buat Record Enrollment Baru (Status: Pending)
+    // Selalu buat baru agar user bisa punya multiple pending transactions untuk kelas berbeda
+    const enrollmentId = generateCustomId('EN'); // Generate ID: EN-XXXXXX
+    const enrollment = await UserEnrollment.create({
+      id: enrollmentId, // Set ID secara eksplisit
+      user_id: userId,
+      learning_path_id: learningPath.id,
+      midtrans_transaction_id: orderId,
+      status: 'pending',
+    });
 
     // 5. Siapkan Payload Midtrans dengan HARGA DISKON
     const transactionDetails = {

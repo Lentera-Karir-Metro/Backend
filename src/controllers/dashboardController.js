@@ -69,6 +69,7 @@ exports.getContinueLearning = async (req, res) => {
       where: { user_id: userId, status: 'success' },
       include: {
         model: LearningPath,
+        as: 'LearningPath', // Gunakan alias yang sesuai dengan model
         attributes: ['id', 'title', 'description', 'thumbnail_url']
       },
       order: [['enrolled_at', 'DESC']]

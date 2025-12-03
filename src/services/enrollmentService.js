@@ -59,15 +59,65 @@ async function createOrUpdateEnrollment(userId, learningPathId, options = {}) {
  * Wrapper khusus untuk mengaktifkan enrollment (biasanya dipanggil oleh Webhook).
  * @param {string} userId
  * @param {string} learningPathId
- * @param {string} midtransId
+ * @param {string} midtransId - Order ID dari Midtrans (wajib untuk identifikasi transaksi yang tepat)
  */
 async function activateEnrollment(userId, learningPathId, midtransId = null) {
-  return createOrUpdateEnrollment(userId, learningPathId, {
-    status: 'success',
-    midtransId,
-    enrolledAt: new Date(),
-    skipIfExists: false // Paksa update status jadi success meskipun sudah ada (misal pending)
-  });
+  try {
+    let enrollment;
+
+    // Jika ada midtransId, cari enrollment berdasarkan order_id (lebih spesifik)
+    if (midtransId) {
+      enrollment = await UserEnrollment.findOne({
+        where: {
+          midtrans_transaction_id: midtransId
+        }
+      });
+
+      if (!enrollment) {
+        console.warn(`[activateEnrollment] Enrollment dengan order_id ${midtransId} tidak ditemukan`);
+        // Fallback: cari berdasarkan user_id dan learning_path_id
+        enrollment = await UserEnrollment.findOne({
+          where: {
+            user_id: userId,
+            learning_path_id: learningPathId,
+            status: 'pending'
+          },
+          order: [['createdAt', 'DESC']] // Ambil yang terbaru
+        });
+      }
+    } else {
+      // Jika tidak ada midtransId, cari berdasarkan user dan learning path
+      enrollment = await UserEnrollment.findOne({
+        where: {
+          user_id: userId,
+          learning_path_id: learningPathId,
+          status: 'pending'
+        },
+        order: [['createdAt', 'DESC']]
+      });
+    }
+
+    if (!enrollment) {
+      console.warn(`[activateEnrollment] Tidak ada enrollment pending untuk user ${userId}, learning_path ${learningPathId}`);
+      return { enrollment: null, created: false };
+    }
+
+    // Update enrollment menjadi success
+    enrollment.status = 'success';
+    enrollment.enrolled_at = new Date();
+    if (midtransId && !enrollment.midtrans_transaction_id) {
+      enrollment.midtrans_transaction_id = midtransId;
+    }
+    
+    await enrollment.save();
+
+    console.log(`[activateEnrollment] ✅ Enrollment ${enrollment.id} berhasil diaktifkan`);
+    return { enrollment, created: false };
+
+  } catch (err) {
+    console.error('[activateEnrollment] Error:', err.message);
+    throw err;
+  }
 }
 
 module.exports = {
