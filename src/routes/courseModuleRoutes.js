@@ -25,6 +25,7 @@ const {
 
 // Impor middleware otorisasi
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
+const { uploadSingle, validateFileByBucket } = require('../middlewares/uploadMiddleware');
 
 // --- Pemasangan Middleware Global ---
 /**
@@ -70,8 +71,14 @@ router.delete('/courses/:id', deleteCourse);
  * @method POST
  * @route /courses/:course_id/modules
  * @description Membuat Module baru di dalam Course tertentu.
+ * Upload file (video/ebook) dengan field "file"
  */
-router.post('/courses/:course_id/modules', createModule);
+router.post(
+  '/courses/:course_id/modules',
+  uploadSingle.single('file'),
+  validateFileByBucket,
+  createModule
+);
 
 /**
  * @method POST
@@ -84,8 +91,14 @@ router.post('/courses/:course_id/reorder-modules', reorderModules);
  * @method PUT
  * @route /modules/:id
  * @description Memperbarui detail Module.
+ * Upload file (video/ebook) dengan field "file"
  */
-router.put('/modules/:id', updateModule);
+router.put(
+  '/modules/:id',
+  uploadSingle.single('file'),
+  validateFileByBucket,
+  updateModule
+);
 
 /**
  * @method DELETE

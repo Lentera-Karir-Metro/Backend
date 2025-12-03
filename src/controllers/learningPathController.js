@@ -1,23 +1,35 @@
 // File: src/controllers/learningPathController.js
 const db = require('../../models');
+const { uploadToSupabase, deleteFromSupabase } = require('../utils/uploadToSupabase');
 const LearningPath = db.LearningPath;
 const Course = db.Course; 
 const Module = db.Module; 
 
 const createLearningPath = async (req, res) => {
   // Admin input rating & review_count manual di sini
-  const { title, description, price, thumbnail_url, rating, review_count, category, discount_amount, level, mentor_name, mentor_title, mentor_avatar_url } = req.body;
+  const { title, description, price, rating, review_count, category, discount_amount, level, mentor_name, mentor_title, mentor_avatar_url } = req.body;
 
   if (!title || !price) {
     return res.status(400).json({ message: 'Title dan Price wajib diisi.' });
   }
 
   try {
+    let thumbnailUrl = null;
+
+    // Upload thumbnail ke Supabase jika ada file
+    if (req.file) {
+      try {
+        thumbnailUrl = await uploadToSupabase(req.file, 'thumbnails', 'learning-paths');
+      } catch (uploadErr) {
+        return res.status(400).json({ message: 'Gagal upload thumbnail.', error: uploadErr.message });
+      }
+    }
+
     const newLearningPath = await LearningPath.create({
       title,
       description: description || null,
       price: parseFloat(price),
-      thumbnail_url: thumbnail_url || null,
+      thumbnail_url: thumbnailUrl,
       discount_amount: parseFloat(discount_amount) || 0,
       rating: parseFloat(rating) || 0.0, 
       review_count: parseInt(review_count) || 0,
@@ -69,7 +81,7 @@ const getLearningPathById = async (req, res) => {
 };
 
 const updateLearningPath = async (req, res) => {
-  const { title, description, price, thumbnail_url, rating, review_count, category, discount_amount } = req.body;
+  const { title, description, price, rating, review_count, category, discount_amount } = req.body;
   try {
     const learningPath = await LearningPath.findByPk(req.params.id);
     if (!learningPath) {
@@ -79,7 +91,20 @@ const updateLearningPath = async (req, res) => {
     learningPath.title = title || learningPath.title;
     learningPath.description = description || learningPath.description;
     learningPath.price = price !== undefined ? parseFloat(price) : learningPath.price; 
-    learningPath.thumbnail_url = thumbnail_url || learningPath.thumbnail_url;
+    
+    // Handle thumbnail upload - jika ada file baru, upload dan hapus yang lama
+    if (req.file) {
+      try {
+        // Hapus thumbnail lama
+        if (learningPath.thumbnail_url) {
+          await deleteFromSupabase(learningPath.thumbnail_url, 'thumbnails');
+        }
+        // Upload yang baru
+        learningPath.thumbnail_url = await uploadToSupabase(req.file, 'thumbnails', 'learning-paths');
+      } catch (uploadErr) {
+        return res.status(400).json({ message: 'Gagal upload thumbnail.', error: uploadErr.message });
+      }
+    }
     
     // Update jika ada input baru
     if (rating !== undefined) learningPath.rating = parseFloat(rating);

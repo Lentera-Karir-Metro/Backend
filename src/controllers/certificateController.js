@@ -3,6 +3,7 @@
  * @fileoverview Certificate Controller - Menangani sertifikat user
  */
 const db = require('../../models');
+const { uploadToSupabase, deleteFromSupabase } = require('../utils/uploadToSupabase');
 const { Certificate, LearningPath, User } = db;
 
 /**
@@ -79,6 +80,96 @@ exports.getCertificateById = async (req, res) => {
     return res.status(500).json({ 
       success: false,
       message: 'Gagal mengambil detail sertifikat', 
+      error: err.message 
+    });
+  }
+};
+
+/**
+ * @function updateCertificate
+ * @description Update sertifikat dengan file upload
+ * @route PUT /api/v1/admin/certificates/:id
+ */
+exports.updateCertificate = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const certificate = await Certificate.findByPk(id);
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sertifikat tidak ditemukan'
+      });
+    }
+
+    // Handle certificate file upload
+    if (req.file) {
+      try {
+        // Hapus file lama
+        if (certificate.certificate_url) {
+          await deleteFromSupabase(certificate.certificate_url, 'certificates');
+        }
+        // Upload yang baru
+        certificate.certificate_url = await uploadToSupabase(req.file, 'certificates', 'certificates');
+      } catch (uploadErr) {
+        return res.status(400).json({
+          success: false,
+          message: 'Gagal upload sertifikat.',
+          error: uploadErr.message
+        });
+      }
+    }
+
+    await certificate.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sertifikat berhasil diupdate',
+      data: certificate
+    });
+  } catch (err) {
+    console.error('Error updateCertificate:', err);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Gagal update sertifikat', 
+      error: err.message 
+    });
+  }
+};
+
+/**
+ * @function deleteCertificate
+ * @description Hapus sertifikat dan file-nya
+ * @route DELETE /api/v1/admin/certificates/:id
+ */
+exports.deleteCertificate = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const certificate = await Certificate.findByPk(id);
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sertifikat tidak ditemukan'
+      });
+    }
+
+    // Hapus file dari Supabase
+    if (certificate.certificate_url) {
+      await deleteFromSupabase(certificate.certificate_url, 'certificates');
+    }
+
+    await certificate.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sertifikat berhasil dihapus'
+    });
+  } catch (err) {
+    console.error('Error deleteCertificate:', err);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Gagal menghapus sertifikat', 
       error: err.message 
     });
   }

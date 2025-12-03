@@ -4,6 +4,7 @@
  * Controller ini diakses khusus oleh Admin.
  */
 const db = require('../../models');
+const { uploadToSupabase, deleteFromSupabase } = require('../utils/uploadToSupabase');
 const Module = db.Module;
 const Course = db.Course;
 // Impor sequelize untuk menjalankan transaksi database (diperlukan untuk reordering)
@@ -14,7 +15,7 @@ const { sequelize } = require('../../models');
  * @description Membuat Module baru di dalam Course.
  * @route POST /api/v1/admin/courses/:course_id/modules
  *
- * @param {object} req - Objek request (params: course_id, body: { title, module_type, video_url, estimasi_waktu_menit, ... })
+ * @param {object} req - Objek request (params: course_id, body: { title, module_type, estimasi_waktu_menit, ... }, file: req.file untuk video/ebook)
  * @param {object} res - Objek response
  * @returns {object} Module yang baru dibuat.
  */
@@ -23,8 +24,6 @@ const createModule = async (req, res) => {
   const {
     title,
     module_type, // 'video', 'ebook', 'quiz'
-    video_url,
-    ebook_url,
     quiz_id,
     durasi_video_menit,
     estimasi_waktu_menit,
@@ -35,13 +34,13 @@ const createModule = async (req, res) => {
     return res.status(400).json({ message: 'Title, Module Type, dan Estimasi Waktu wajib diisi.' });
   }
 
-  // Validasi spesifik tipe modul
-  if (module_type === 'video' && !video_url) {
-     return res.status(400).json({ message: 'Video URL wajib diisi untuk modul video.' });
+  // Validasi: untuk video dan ebook wajib ada file
+  if (module_type === 'video' && !req.file) {
+     return res.status(400).json({ message: 'File video wajib diupload untuk modul video.' });
   }
 
-  if (module_type === 'ebook' && !ebook_url) {
-     return res.status(400).json({ message: 'Ebook URL wajib diisi untuk modul ebook.' });
+  if (module_type === 'ebook' && !req.file) {
+     return res.status(400).json({ message: 'File ebook wajib diupload untuk modul ebook.' });
   }
 
   try {
@@ -59,16 +58,34 @@ const createModule = async (req, res) => {
 
     const nextOrder = lastModule ? lastModule.sequence_order + 1 : 1;
 
-    // 3. Buat Module baru
-    // Catatan: ID (MD-XXXXXX) otomatis dibuat oleh Hook di model Module
+    // 3. Upload file ke Supabase jika ada
+    let videoUrl = null;
+    let ebookUrl = null;
+
+    if (module_type === 'video' && req.file) {
+      try {
+        videoUrl = await uploadToSupabase(req.file, 'videos', 'modules');
+      } catch (uploadErr) {
+        return res.status(400).json({ message: 'Gagal upload video.', error: uploadErr.message });
+      }
+    }
+
+    if (module_type === 'ebook' && req.file) {
+      try {
+        ebookUrl = await uploadToSupabase(req.file, 'ebooks', 'modules');
+      } catch (uploadErr) {
+        return res.status(400).json({ message: 'Gagal upload ebook.', error: uploadErr.message });
+      }
+    }
+
+    // 4. Buat Module baru
     const newModule = await Module.create({
-      id: generateCustomId('MD'),
       course_id: course_id,
       title,
       module_type,
       sequence_order: nextOrder,
-      video_url: module_type === 'video' ? video_url : null,
-      ebook_url: module_type === 'ebook' ? ebook_url : null,
+      video_url: videoUrl,
+      ebook_url: ebookUrl,
       quiz_id: module_type === 'quiz' ? quiz_id : null,
       durasi_video_menit: durasi_video_menit || null,
       estimasi_waktu_menit: parseInt(estimasi_waktu_menit),
@@ -86,7 +103,7 @@ const createModule = async (req, res) => {
  * @description Memperbarui Module berdasarkan ID-nya.
  * @route PUT /api/v1/admin/modules/:id
  *
- * @param {object} req - Objek request (params: id, body: { title, module_type, ... })
+ * @param {object} req - Objek request (params: id, body: { title, module_type, ... }, file: req.file untuk video/ebook)
  * @param {object} res - Objek response
  * @returns {object} Module yang sudah diperbarui.
  */
@@ -95,8 +112,6 @@ const updateModule = async (req, res) => {
   const {
     title,
     module_type,
-    video_url,
-    ebook_url,
     quiz_id,
     durasi_video_menit,
     estimasi_waktu_menit,
@@ -108,14 +123,50 @@ const updateModule = async (req, res) => {
       return res.status(404).json({ message: 'Module tidak ditemukan.' });
     }
     
-    // Update data
+    // Update data dasar
     module.title = title || module.title;
     module.module_type = module_type || module.module_type;
     
-    // Reset field yang tidak relevan jika tipe berubah
-    module.video_url = module.module_type === 'video' ? video_url : null;
-    module.ebook_url = module.module_type === 'ebook' ? ebook_url : null;
-    module.quiz_id = module.module_type === 'quiz' ? quiz_id : null;
+    // Handle file upload untuk video
+    if (module.module_type === 'video') {
+      if (req.file) {
+        try {
+          // Hapus file lama
+          if (module.video_url) {
+            await deleteFromSupabase(module.video_url, 'videos');
+          }
+          // Upload yang baru
+          module.video_url = await uploadToSupabase(req.file, 'videos', 'modules');
+        } catch (uploadErr) {
+          return res.status(400).json({ message: 'Gagal upload video.', error: uploadErr.message });
+        }
+      }
+      module.ebook_url = null; // Reset ebook jika tipe video
+    }
+    
+    // Handle file upload untuk ebook
+    if (module.module_type === 'ebook') {
+      if (req.file) {
+        try {
+          // Hapus file lama
+          if (module.ebook_url) {
+            await deleteFromSupabase(module.ebook_url, 'ebooks');
+          }
+          // Upload yang baru
+          module.ebook_url = await uploadToSupabase(req.file, 'ebooks', 'modules');
+        } catch (uploadErr) {
+          return res.status(400).json({ message: 'Gagal upload ebook.', error: uploadErr.message });
+        }
+      }
+      module.video_url = null; // Reset video jika tipe ebook
+    }
+
+    // Handle quiz
+    if (module.module_type === 'quiz') {
+      module.quiz_id = quiz_id || module.quiz_id;
+      module.video_url = null;
+      module.ebook_url = null;
+    }
     
     module.durasi_video_menit = durasi_video_menit || module.durasi_video_menit;
     module.estimasi_waktu_menit = estimasi_waktu_menit || module.estimasi_waktu_menit;
@@ -129,7 +180,7 @@ const updateModule = async (req, res) => {
 
 /**
  * @function deleteModule
- * @description Menghapus Module berdasarkan ID-nya.
+ * @description Menghapus Module berdasarkan ID-nya beserta file yang terkait di Supabase.
  * @route DELETE /api/v1/admin/modules/:id
  *
  * @param {object} req - Objek request (params: id)
@@ -141,6 +192,14 @@ const deleteModule = async (req, res) => {
     const module = await Module.findByPk(req.params.id);
     if (!module) {
       return res.status(404).json({ message: 'Module tidak ditemukan.' });
+    }
+
+    // Hapus file dari Supabase
+    if (module.video_url) {
+      await deleteFromSupabase(module.video_url, 'videos');
+    }
+    if (module.ebook_url) {
+      await deleteFromSupabase(module.ebook_url, 'ebooks');
     }
 
     await module.destroy(); 

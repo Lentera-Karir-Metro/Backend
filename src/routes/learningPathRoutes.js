@@ -18,6 +18,7 @@ const {
 
 // Impor middleware otorisasi dan otentikasi
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
+const { uploadSingle, validateFileByBucket } = require('../middlewares/uploadMiddleware');
 
 // --- Pemasangan Middleware Global ---
 /**
@@ -33,18 +34,28 @@ router.use(isAdmin);
 /**
  * @route /
  * @description Rute utama untuk membuat dan mengambil semua Learning Path.
+ * POST: Upload thumbnail optional (formData dengan field "thumbnail")
  */
 router.route('/')
-  .post(createLearningPath) // POST /api/v1/admin/learning-paths (Create)
+  .post(
+    uploadSingle.single('thumbnail'),
+    validateFileByBucket,
+    createLearningPath
+  ) // POST /api/v1/admin/learning-paths (Create with optional thumbnail)
   .get(getAllLearningPaths);  // GET /api/v1/admin/learning-paths (Read All)
 
 /**
  * @route /:id
  * @description Rute untuk operasi spesifik 1 Learning Path.
+ * PUT: Upload thumbnail optional
  */
 router.route('/:id')
   .get(getLearningPathById)    // GET /api/v1/admin/learning-paths/:id (Read One & Kurikulum)
-  .put(updateLearningPath)     // PUT /api/v1/admin/learning-paths/:id (Update)
+  .put(
+    uploadSingle.single('thumbnail'),
+    validateFileByBucket,
+    updateLearningPath
+  )     // PUT /api/v1/admin/learning-paths/:id (Update with optional thumbnail)
   .delete(deleteLearningPath);  // DELETE /api/v1/admin/learning-paths/:id (Delete)
 
 module.exports = router;

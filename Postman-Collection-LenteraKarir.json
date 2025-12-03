@@ -161,16 +161,24 @@
 								"key": "Authorization",
 								"value": "Bearer {{adminToken}}",
 								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"title\": \"Bootcamp: Kick-Start Karier Digital\",\n    \"description\": \"Program pelatihan intensif...\",\n    \"price\": 250000,\n    \"discount_amount\": 50000,\n    \"thumbnail_url\": \"https://via.placeholder.com/300\",\n    \"rating\": 4.9,\n    \"review_count\": 320,\n    \"category\": \"Digital Marketing\",\n    \"level\": \"Beginner\",\n    \"mentor_name\": \"Ayu Putri\",\n    \"mentor_title\": \"Co-Founder @bijaktechno\",\n    \"mentor_avatar_url\": \"https://ui-avatars.com/api/?name=Ayu+Putri\"\n}"
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "title", "value": "Bootcamp: Kick-Start Karier Digital", "type": "text" },
+								{ "key": "description", "value": "Program pelatihan intensif...", "type": "text" },
+								{ "key": "price", "value": "250000", "type": "text" },
+								{ "key": "discount_amount", "value": "50000", "type": "text" },
+								{ "key": "rating", "value": "4.9", "type": "text" },
+								{ "key": "review_count", "value": "320", "type": "text" },
+								{ "key": "category", "value": "Digital Marketing", "type": "text" },
+								{ "key": "level", "value": "Beginner", "type": "text" },
+								{ "key": "mentor_name", "value": "Ayu Putri", "type": "text" },
+								{ "key": "mentor_title", "value": "Co-Founder @bijaktechno", "type": "text" },
+								{ "key": "mentor_avatar_url", "value": "https://ui-avatars.com/api/?name=Ayu+Putri", "type": "text" },
+								{ "key": "thumbnail", "type": "file", "src": "" }
+							]
 						},
 						"url": {
 							"raw": "{{baseUrl}}/admin/learning-paths",
@@ -243,16 +251,17 @@
 								"key": "Authorization",
 								"value": "Bearer {{adminToken}}",
 								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"title\": \"Analisis Tren\",\n    \"module_type\": \"video\",\n    \"video_url\": \"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4\",\n    \"durasi_video_menit\": 10,\n    \"estimasi_waktu_menit\": 15\n}"
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "title", "value": "Analisis Tren", "type": "text" },
+								{ "key": "module_type", "value": "video", "type": "text" },
+								{ "key": "durasi_video_menit", "value": "10", "type": "text" },
+								{ "key": "estimasi_waktu_menit", "value": "15", "type": "text" },
+								{ "key": "file", "type": "file", "src": "" }
+							]
 						},
 						"url": {
 							"raw": "{{baseUrl}}/admin/courses/{{courseId}}/modules",
@@ -278,16 +287,16 @@
 								"key": "Authorization",
 								"value": "Bearer {{adminToken}}",
 								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"title\": \"Ebook Panduan SEO\",\n    \"module_type\": \"ebook\",\n    \"ebook_url\": \"https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\",\n    \"estimasi_waktu_menit\": 20\n}"
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "title", "value": "Ebook Panduan SEO", "type": "text" },
+								{ "key": "module_type", "value": "ebook", "type": "text" },
+								{ "key": "estimasi_waktu_menit", "value": "20", "type": "text" },
+								{ "key": "file", "type": "file", "src": "" }
+							]
 						},
 						"url": {
 							"raw": "{{baseUrl}}/admin/courses/{{courseId}}/modules",
@@ -301,6 +310,87 @@
 								"modules"
 							]
 						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Admin - Articles (Create)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "title", "value": "Panduan SEO 2025", "type": "text" },
+								{ "key": "description", "value": "Ringkasan singkat artikel...", "type": "text" },
+								{ "key": "category", "value": "SEO", "type": "text" },
+								{ "key": "content", "value": "<p>Isi artikel lengkap...</p>", "type": "text" },
+								{ "key": "thumbnail", "type": "file", "src": "" }
+							]
+						},
+						"url": { "raw": "{{baseUrl}}/admin/articles", "host": [ "{{baseUrl}}" ], "path": [ "admin", "articles" ] }
+					},
+					"response": []
+				},
+				{
+					"name": "5. Admin - Articles (Update)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "title", "value": "Panduan SEO 2025 - Update", "type": "text" },
+								{ "key": "description", "value": "Update ringkasan...", "type": "text" },
+								{ "key": "category", "value": "SEO", "type": "text" },
+								{ "key": "content", "value": "<p>Konten artikel diperbarui...</p>", "type": "text" },
+								{ "key": "thumbnail", "type": "file", "src": "" }
+							]
+						},
+						"url": { "raw": "{{baseUrl}}/admin/articles/{{articleId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "articles", "{{articleId}}" ] }
+					},
+					"response": []
+				},
+				{
+					"name": "6. Admin - Articles (Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": { "raw": "{{baseUrl}}/admin/articles/{{articleId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "articles", "{{articleId}}" ] }
+					},
+					"response": []
+				},
+				{
+					"name": "7. Admin - Certificates (Update)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "certificate", "type": "file", "src": "" }
+							]
+						},
+						"url": { "raw": "{{baseUrl}}/admin/certificates/{{certId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "certificates", "{{certId}}" ] }
+					},
+					"response": []
+				},
+				{
+					"name": "8. Admin - Certificates (Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": { "raw": "{{baseUrl}}/admin/certificates/{{certId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "certificates", "{{certId}}" ] }
 					},
 					"response": []
 				},

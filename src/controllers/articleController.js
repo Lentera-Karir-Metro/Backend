@@ -1,6 +1,146 @@
 // File: src/controllers/articleController.js
 const { Article } = require('../../models');
+const { uploadToSupabase, deleteFromSupabase } = require('../utils/uploadToSupabase');
 const { Op } = require('sequelize');
+
+// Create article
+exports.createArticle = async (req, res) => {
+  try {
+    const { title, content, author, category } = req.body;
+
+    if (!title || !content || !author) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title, content, dan author wajib diisi'
+      });
+    }
+
+    let thumbnailUrl = null;
+
+    // Upload thumbnail ke Supabase jika ada file
+    if (req.file) {
+      try {
+        thumbnailUrl = await uploadToSupabase(req.file, 'thumbnails', 'articles');
+      } catch (uploadErr) {
+        return res.status(400).json({
+          success: false,
+          message: 'Gagal upload thumbnail.',
+          error: uploadErr.message
+        });
+      }
+    }
+
+    const article = await Article.create({
+      title,
+      content,
+      author,
+      category: category || 'General',
+      thumbnail_url: thumbnailUrl
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Article berhasil dibuat',
+      data: article
+    });
+  } catch (error) {
+    console.error('Error creating article:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal membuat article',
+      error: error.message
+    });
+  }
+};
+
+// Update article
+exports.updateArticle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, author, category } = req.body;
+
+    const article = await Article.findByPk(id);
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article tidak ditemukan'
+      });
+    }
+
+    // Update data dasar
+    if (title) article.title = title;
+    if (content) article.content = content;
+    if (author) article.author = author;
+    if (category) article.category = category;
+
+    // Handle thumbnail upload
+    if (req.file) {
+      try {
+        // Hapus thumbnail lama
+        if (article.thumbnail_url) {
+          await deleteFromSupabase(article.thumbnail_url, 'thumbnails');
+        }
+        // Upload yang baru
+        article.thumbnail_url = await uploadToSupabase(req.file, 'thumbnails', 'articles');
+      } catch (uploadErr) {
+        return res.status(400).json({
+          success: false,
+          message: 'Gagal upload thumbnail.',
+          error: uploadErr.message
+        });
+      }
+    }
+
+    await article.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Article berhasil diupdate',
+      data: article
+    });
+  } catch (error) {
+    console.error('Error updating article:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal update article',
+      error: error.message
+    });
+  }
+};
+
+// Delete article
+exports.deleteArticle = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const article = await Article.findByPk(id);
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article tidak ditemukan'
+      });
+    }
+
+    // Hapus thumbnail dari Supabase
+    if (article.thumbnail_url) {
+      await deleteFromSupabase(article.thumbnail_url, 'thumbnails');
+    }
+
+    await article.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: 'Article berhasil dihapus'
+    });
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal menghapus article',
+      error: error.message
+    });
+  }
+};
 
 // Get all articles with pagination and search
 exports.getAllArticles = async (req, res) => {
