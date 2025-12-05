@@ -69,4 +69,26 @@ async function verifyCoreNotification(notificationBody) {
   }
 }
 
-module.exports = { coreApi, snap, createSnapTransaction, verifyCoreNotification };
+/**
+ * Wrapper helper untuk cancel transaksi Midtrans
+ */
+async function cancelMidtransTransaction(orderId) {
+  if (!serverKey) {
+    throw new Error('MIDTRANS_SERVER_KEY is missing. Check your .env file.');
+  }
+  try {
+    console.log('[Midtrans] Canceling transaction:', orderId);
+    return await coreApi.transaction.cancel(orderId);
+  } catch (err) {
+    // Jika transaksi sudah expired atau tidak ditemukan, tidak perlu throw error
+    if (err.ApiResponse?.status_code === '404' || err.message.includes('404')) {
+      console.log(`[Midtrans] Transaction ${orderId} not found (already expired/cancelled)`);
+      return { status_code: '404', status_message: 'Transaction not found' };
+    }
+    console.warn(`[Midtrans] Cancel error for ${orderId}:`, err.message);
+    // Return error tapi jangan throw, biar proses checkout tetap lanjut
+    return { status_code: 'error', status_message: err.message };
+  }
+}
+
+module.exports = { coreApi, snap, createSnapTransaction, verifyCoreNotification, cancelMidtransTransaction };

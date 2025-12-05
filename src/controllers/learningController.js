@@ -148,31 +148,33 @@ const getLearningPathContent = async (req, res) => {
     delete lpData.mentor_title;
     delete lpData.mentor_avatar_url;
 
-    // 5. LOGIKA PENGUNCIAN (Lock System)
-    let isPreviousCourseCompleted = true; 
-
+    // 5. LOGIKA PENGUNCIAN (DISABLED - All modules unlocked)
     for (const course of lpData.courses) {
       let totalModules = course.modules.length;
       let completedModules = 0;
-      let isPreviousModuleCompleted = true; 
 
-      // Status Lock Course
-      course.is_locked = !isPreviousCourseCompleted;
+      // Status Lock Course - ALWAYS UNLOCKED
+      course.is_locked = false;
+      
+      // Add course_id to match frontend expectations
+      course.course_id = course.id;
 
       for (const module of course.modules) {
         // Cek Completed
         module.is_completed = completedModuleIds.has(module.id);
         if (module.is_completed) completedModules++;
         
-        // Cek Locked
-        module.is_locked = course.is_locked || !isPreviousModuleCompleted; 
+        // Cek Locked - ALWAYS UNLOCKED
+        module.is_locked = false;
         
-        isPreviousModuleCompleted = module.is_completed;
+        // TRANSFORM module fields to match frontend expectations
+        module.module_id = module.id; // Frontend expects module_id instead of id
+        module.type = module.module_type; // Frontend expects type instead of module_type
+        module.duration = module.estimasi_waktu_menit || 0; // Frontend expects duration
       }
       
       // Cek Course Completed
       course.is_completed = (totalModules > 0 && completedModules === totalModules);
-      isPreviousCourseCompleted = course.is_completed;
     }
 
     return res.status(200).json(lpData);
@@ -185,7 +187,7 @@ const getLearningPathContent = async (req, res) => {
 
 /**
  * @function markModuleAsComplete
- * @description Menandai modul sebagai selesai.
+ * @description Menandai modul sebagai selesai. Auto-generate certificate jika progress 100%.
  * @route POST /api/v1/learn/modules/:module_id/complete
  */
 const markModuleAsComplete = async (req, res) => {
@@ -209,24 +211,19 @@ const markModuleAsComplete = async (req, res) => {
     });
     if (!enrollment) return res.status(403).json({ message: 'Akses ditolak.' });
 
-    // 3. Validasi Urutan (Anti-Cheat)
-    if (module.sequence_order > 1) {
-      const prevModule = await Module.findOne({
-        where: { course_id: module.course_id, sequence_order: module.sequence_order - 1 }
-      });
-      if (prevModule) {
-        const prevProgress = await UserModuleProgress.findOne({
-          where: { user_id: userId, module_id: prevModule.id }
-        });
-        if (!prevProgress) return res.status(403).json({ message: 'Modul sebelumnya belum selesai.' });
-      }
-    }
+    // 3. Validasi Urutan (DISABLED - Allow any order)
+    // Users can complete modules in any order
 
     // 4. Simpan Progress
-    await UserModuleProgress.findOrCreate({
+    const [progress, created] = await UserModuleProgress.findOrCreate({
       where: { user_id: userId, module_id: module.id },
       defaults: { is_completed: true }
     });
+    
+    // 5. Check if Learning Path is 100% complete → Auto-generate certificate
+    if (created) {
+      await checkAndGenerateCertificate(userId, module.Course.learning_path_id);
+    }
     
     return res.status(200).json({ message: 'Modul selesai.' });
 
@@ -237,8 +234,90 @@ const markModuleAsComplete = async (req, res) => {
 };
 
 /**
+ * @function checkAndGenerateCertificate
+ * @description Check progress learning path, jika 100% auto-generate certificate
+ * @param {string} userId - ID user
+ * @param {string} learningPathId - ID learning path
+ */
+const checkAndGenerateCertificate = async (userId, learningPathId) => {
+  try {
+    const { Certificate } = db;
+    
+    // Check apakah sudah punya certificate untuk LP ini
+    const existingCert = await Certificate.findOne({
+      where: { user_id: userId, learning_path_id: learningPathId }
+    });
+    
+    if (existingCert) {
+      console.log('Certificate already exists for user:', userId, 'LP:', learningPathId);
+      return;
+    }
+
+    // Hitung total modules di learning path ini
+    const totalModules = await Module.count({
+      include: {
+        model: Course,
+        as: 'course',
+        where: { learning_path_id: learningPathId },
+        attributes: []
+      }
+    });
+
+    // Hitung completed modules
+    const completedModules = await UserModuleProgress.count({
+      where: { user_id: userId },
+      include: {
+        model: Module,
+        as: 'module',
+        required: true,
+        include: {
+          model: Course,
+          as: 'course',
+          where: { learning_path_id: learningPathId },
+          attributes: []
+        }
+      }
+    });
+
+    console.log(`Progress check - Total: ${totalModules}, Completed: ${completedModules}`);
+
+    // Jika 100% complete, generate certificate
+    if (totalModules > 0 && completedModules >= totalModules) {
+      // Hitung total hours dari semua modules
+      const modules = await Module.findAll({
+        include: {
+          model: Course,
+          as: 'course',
+          where: { learning_path_id: learningPathId },
+          attributes: []
+        },
+        attributes: ['duration']
+      });
+
+      const totalMinutes = modules.reduce((sum, m) => sum + (m.duration || 0), 0);
+      const totalHours = Math.ceil(totalMinutes / 60);
+
+      // Create certificate
+      const certificate = await Certificate.create({
+        user_id: userId,
+        learning_path_id: learningPathId,
+        issued_at: new Date(),
+        total_hours: totalHours,
+        certificate_url: null // Bisa di-generate nanti via admin/otomatis
+      });
+
+      console.log('✅ Certificate auto-generated:', certificate.id);
+    }
+  } catch (err) {
+    console.error('Error checking/generating certificate:', err);
+    // Don't throw - let module completion succeed even if cert generation fails
+  }
+};
+
+/**
  * @function getMyEbooks
- * @description Mengambil semua ebook yang dimiliki user dari course yang telah dibeli
+ * @description Mengambil ebook yang telah didownload user (exist in UserModuleProgress)
+ * Hanya ebook yang sudah di-download (marked as completed) yang muncul di dashboard
  * @route GET /api/v1/learn/ebooks
  */
 const getMyEbooks = async (req, res) => {
@@ -268,7 +347,8 @@ const getMyEbooks = async (req, res) => {
     const learningPathIds = enrollments.map(e => e.learning_path_id);
     console.log('Learning Path IDs:', learningPathIds);
 
-    // Step 2: Query ebooks dengan JOIN (JOIN LearningPaths untuk thumbnail)
+    // Step 2: Query ebooks yang sudah di-download (exist in UserModuleProgress)
+    // Hanya ebook yang user sudah klik download/complete yang muncul
     const ebooks = await db.sequelize.query(
       `SELECT 
         m.id, 
@@ -279,16 +359,18 @@ const getMyEbooks = async (req, res) => {
        FROM Modules m
        JOIN Courses c ON m.course_id = c.id
        JOIN LearningPaths lp ON c.learning_path_id = lp.id
+       JOIN UserModuleProgresses ump ON ump.module_id = m.id AND ump.user_id = :userId
        WHERE c.learning_path_id IN (:ids)
        AND m.module_type = 'ebook'
+       AND ump.is_completed = 1
        ORDER BY c.id, m.sequence_order ASC`,
       {
-        replacements: { ids: learningPathIds },
+        replacements: { userId, ids: learningPathIds },
         type: db.Sequelize.QueryTypes.SELECT
       }
     );
 
-    console.log('Ebooks found:', ebooks.length);
+    console.log('Downloaded ebooks found:', ebooks.length);
     console.log('=== GET MY EBOOKS SUCCESS ===');
 
     return res.status(200).json({ success: true, data: ebooks });

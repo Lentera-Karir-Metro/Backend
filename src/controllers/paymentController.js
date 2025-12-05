@@ -6,7 +6,7 @@
 const db = require('../../models');
 const { LearningPath, UserEnrollment } = db;
 // Kita gunakan wrapper helper yang lebih aman (sesuai update utils sebelumnya)
-const { createSnapTransaction } = require('../utils/midtransClient'); 
+const { createSnapTransaction, cancelMidtransTransaction } = require('../utils/midtransClient'); 
 const { generateCustomId } = require('../utils/idGenerator'); 
 
 /**
@@ -57,33 +57,51 @@ const createCheckoutSession = async (req, res) => {
     }
     // -------------------------------------
 
-    // 2. Cek apakah user sudah terdaftar DI LEARNING PATH INI
+    // 2. Cek apakah ada enrollment APAPUN untuk user ini di learning path ini
     const existingEnrollment = await UserEnrollment.findOne({
       where: { 
         user_id: userId, 
-        learning_path_id: learningPath.id,
-        status: 'success' // Hanya cek yang sudah success
+        learning_path_id: learningPath.id
       }
     });
-
-    // Jika sudah sukses bayar, tolak
-    if (existingEnrollment) {
-      return res.status(409).json({ message: 'Anda sudah terdaftar di learning path ini.' });
-    }
 
     // 3. Buat 'order_id' unik
     const orderId = `LENTERA-${generateCustomId('TRX')}`;
 
-    // 4. Buat Record Enrollment Baru (Status: Pending)
-    // Selalu buat baru agar user bisa punya multiple pending transactions untuk kelas berbeda
-    const enrollmentId = generateCustomId('EN'); // Generate ID: EN-XXXXXX
-    const enrollment = await UserEnrollment.create({
-      id: enrollmentId, // Set ID secara eksplisit
-      user_id: userId,
-      learning_path_id: learningPath.id,
-      midtrans_transaction_id: orderId,
-      status: 'pending',
-    });
+    let enrollment;
+    
+    if (existingEnrollment) {
+      // Ada enrollment yang sudah ada
+      if (existingEnrollment.status === 'success') {
+        // Jika sudah success, tolak
+        return res.status(409).json({ message: 'Anda sudah terdaftar di learning path ini.' });
+      } else {
+        // Jika status pending atau failed, CANCEL transaksi lama di Midtrans
+        if (existingEnrollment.midtrans_transaction_id) {
+          console.log(`[Checkout] Canceling old Midtrans transaction: ${existingEnrollment.midtrans_transaction_id}`);
+          await cancelMidtransTransaction(existingEnrollment.midtrans_transaction_id);
+        }
+        
+        // UPDATE dengan transaction ID baru
+        console.log(`[Checkout] Updating existing enrollment (status: ${existingEnrollment.status}): ${existingEnrollment.id} with new transaction: ${orderId}`);
+        await existingEnrollment.update({ 
+          midtrans_transaction_id: orderId,
+          status: 'pending' // Reset ke pending untuk transaksi baru
+        });
+        enrollment = existingEnrollment;
+      }
+    } else {
+      // Belum ada enrollment sama sekali, buat baru
+      console.log(`[Checkout] Creating new enrollment with transaction: ${orderId}`);
+      const enrollmentId = generateCustomId('EN'); // Generate ID: EN-XXXXXX
+      enrollment = await UserEnrollment.create({
+        id: enrollmentId, // Set ID secara eksplisit
+        user_id: userId,
+        learning_path_id: learningPath.id,
+        midtrans_transaction_id: orderId,
+        status: 'pending',
+      });
+    }
 
     // 5. Siapkan Payload Midtrans dengan HARGA DISKON
     const transactionDetails = {

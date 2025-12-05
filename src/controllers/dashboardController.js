@@ -33,9 +33,18 @@ exports.getDashboardStats = async (req, res) => {
       where: { user_id: userId }
     });
 
-    // Untuk ebook, kita anggap sama dengan kelas karena belum ada tabel terpisah
-    // Bisa disesuaikan jika nanti ada tabel Ebook tersendiri
-    const totalEbook = totalKelas;
+    // Count ebook yang sudah di-download (exist in UserModuleProgress)
+    // Hanya ebook yang user sudah klik download yang dihitung
+    const totalEbook = await UserModuleProgress.count({
+      where: { user_id: userId },
+      include: {
+        model: Module,
+        as: 'module',
+        where: { module_type: 'ebook' },
+        required: true,
+        attributes: []
+      }
+    });
 
     return res.status(200).json({
       success: true,

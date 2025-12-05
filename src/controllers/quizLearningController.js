@@ -11,6 +11,7 @@ const {
   UserQuizAttempt, 
   UserQuizAnswer,
   Module,
+  Course,
   UserEnrollment
 } = db;
 const { Op } = require('sequelize');
@@ -26,7 +27,7 @@ const validateQuizAccess = async (userId, quizId) => {
   // Cari modul yang terkait dengan kuis ini
   const module = await Module.findOne({ 
     where: { quiz_id: quizId },
-    include: { model: db.Course, attributes: ['learning_path_id'] }
+    include: { model: Course, as: 'course', attributes: ['learning_path_id'] }
   });
 
   if (!module) {
@@ -37,7 +38,7 @@ const validateQuizAccess = async (userId, quizId) => {
   const enrollment = await UserEnrollment.findOne({
     where: {
       user_id: userId,
-      learning_path_id: module.Course.learning_path_id,
+      learning_path_id: module.course.learning_path_id,
       status: 'success'
     }
   });
@@ -127,6 +128,7 @@ const startOrResumeQuiz = async (req, res) => {
     });
 
   } catch (err) {
+    console.error('[Quiz Start Error]', err);
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };

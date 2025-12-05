@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 
 // Impor controller yang menangani logika sinkronisasi dan refresh token
-const { syncUser, refreshToken } = require('../controllers/authController');
+const { syncUser, refreshToken, forgotPassword } = require('../controllers/authController');
 
 /**
  * @method POST
@@ -22,5 +22,12 @@ router.post('/sync', syncUser);
  * @description Endpoint untuk memperbarui token sesi (opsional, jika tidak ditangani otomatis oleh frontend SDK).
  */
 router.post('/refresh-token', refreshToken);
+
+/**
+ * @method POST
+ * @route /forgot-password
+ * @description Endpoint untuk mengirim email reset password.
+ */
+router.post('/forgot-password', forgotPassword);
 
 module.exports = router;
