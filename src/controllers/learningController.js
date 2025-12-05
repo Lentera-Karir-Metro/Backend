@@ -5,11 +5,11 @@
  * agar Frontend tidak perlu request berulang kali.
  */
 const db = require('../../models');
-const { 
-  LearningPath, 
-  Course, 
-  Module, 
-  UserEnrollment, 
+const {
+  LearningPath,
+  Course,
+  Module,
+  UserEnrollment,
   UserModuleProgress,
   Sequelize
 } = db;
@@ -25,7 +25,7 @@ const getMyDashboard = async (req, res) => {
   try {
     console.log('=== GET MY DASHBOARD START ===');
     console.log('User ID:', userId);
-    
+
     // Step 1: Query enrollments dengan raw query untuk debugging
     const enrollments = await db.sequelize.query(
       `SELECT id, learning_path_id, enrolled_at 
@@ -65,23 +65,57 @@ const getMyDashboard = async (req, res) => {
     console.log('Learning Paths found:', learningPaths.length);
     console.log('Learning Paths:', JSON.stringify(learningPaths, null, 2));
 
-    // Step 4: Add progress data
-    const result = learningPaths.map(lp => ({
-      ...lp,
-      progress_percent: 0,
-      total_modules: 12
-    }));
+    // Step 4: Calculate real progress for each learning path
+    const result = await Promise.all(
+      learningPaths.map(async (lp) => {
+        // Count total modules in this learning path
+        const totalModules = await db.sequelize.query(
+          `SELECT COUNT(*) as count
+           FROM Modules m
+           INNER JOIN Courses c ON m.course_id = c.id
+           WHERE c.learning_path_id = :lpId`,
+          {
+            replacements: { lpId: lp.id },
+            type: db.Sequelize.QueryTypes.SELECT
+          }
+        );
+
+        // Count completed modules by this user
+        const completedModules = await db.sequelize.query(
+          `SELECT COUNT(*) as count
+           FROM UserModuleProgresses ump
+           INNER JOIN Modules m ON ump.module_id = m.id
+           INNER JOIN Courses c ON m.course_id = c.id
+           WHERE c.learning_path_id = :lpId AND ump.user_id = :userId`,
+          {
+            replacements: { lpId: lp.id, userId },
+            type: db.Sequelize.QueryTypes.SELECT
+          }
+        );
+
+        const total = totalModules[0]?.count || 0;
+        const completed = completedModules[0]?.count || 0;
+        const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        return {
+          ...lp,
+          progress_percent: progressPercent,
+          total_modules: total,
+          completed_modules: completed
+        };
+      })
+    );
 
     console.log('=== GET MY DASHBOARD SUCCESS ===');
     return res.status(200).json(result);
-    
+
   } catch (err) {
     console.error('=== GET MY DASHBOARD ERROR ===');
     console.error('Error message:', err.message);
     console.error('Error stack:', err.stack);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Server error.', 
+      message: 'Server error.',
       error: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
@@ -129,7 +163,7 @@ const getLearningPathContent = async (req, res) => {
         [{ model: Course, as: 'courses' }, { model: Module, as: 'modules' }, 'sequence_order', 'ASC']
       ]
     });
-    
+
     if (!learningPath) return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
 
     // 4. FORMAT DATA JSON
@@ -138,9 +172,9 @@ const getLearningPathContent = async (req, res) => {
     // TRANSFORMASI DATA MENTOR (Kolom DB -> Objek UI)
     // Kita ubah kolom flat (mentor_name) menjadi object (mentor { name }) agar Frontend rapi
     lpData.mentor = {
-        name: lpData.mentor_name || "Tim Lentera Karir",
-        job_title: lpData.mentor_title || "Expert Instructor",
-        avatar_url: lpData.mentor_avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(lpData.mentor_name || "Mentor")}&background=random`
+      name: lpData.mentor_name || "Tim Lentera Karir",
+      job_title: lpData.mentor_title || "Expert Instructor",
+      avatar_url: lpData.mentor_avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(lpData.mentor_name || "Mentor")}&background=random`
     };
 
     // Hapus kolom flat agar response bersih (opsional)
@@ -155,7 +189,7 @@ const getLearningPathContent = async (req, res) => {
 
       // Status Lock Course - ALWAYS UNLOCKED
       course.is_locked = false;
-      
+
       // Add course_id to match frontend expectations
       course.course_id = course.id;
 
@@ -163,16 +197,16 @@ const getLearningPathContent = async (req, res) => {
         // Cek Completed
         module.is_completed = completedModuleIds.has(module.id);
         if (module.is_completed) completedModules++;
-        
+
         // Cek Locked - ALWAYS UNLOCKED
         module.is_locked = false;
-        
+
         // TRANSFORM module fields to match frontend expectations
         module.module_id = module.id; // Frontend expects module_id instead of id
         module.type = module.module_type; // Frontend expects type instead of module_type
         module.duration = module.estimasi_waktu_menit || 0; // Frontend expects duration
       }
-      
+
       // Cek Course Completed
       course.is_completed = (totalModules > 0 && completedModules === totalModules);
     }
@@ -203,8 +237,8 @@ const markModuleAsComplete = async (req, res) => {
 
     // 2. Cek Enrollment
     const enrollment = await UserEnrollment.findOne({
-      where: { 
-        user_id: userId, 
+      where: {
+        user_id: userId,
         learning_path_id: module.Course.learning_path_id,
         status: 'success'
       }
@@ -219,12 +253,12 @@ const markModuleAsComplete = async (req, res) => {
       where: { user_id: userId, module_id: module.id },
       defaults: { is_completed: true }
     });
-    
+
     // 5. Check if Learning Path is 100% complete → Auto-generate certificate
     if (created) {
       await checkAndGenerateCertificate(userId, module.Course.learning_path_id);
     }
-    
+
     return res.status(200).json({ message: 'Modul selesai.' });
 
   } catch (err) {
@@ -242,12 +276,12 @@ const markModuleAsComplete = async (req, res) => {
 const checkAndGenerateCertificate = async (userId, learningPathId) => {
   try {
     const { Certificate } = db;
-    
+
     // Check apakah sudah punya certificate untuk LP ini
     const existingCert = await Certificate.findOne({
       where: { user_id: userId, learning_path_id: learningPathId }
     });
-    
+
     if (existingCert) {
       console.log('Certificate already exists for user:', userId, 'LP:', learningPathId);
       return;
@@ -378,10 +412,10 @@ const getMyEbooks = async (req, res) => {
     console.error('=== GET MY EBOOKS ERROR ===');
     console.error('Error message:', err.message);
     console.error('Error stack:', err.stack);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server error.', 
-      error: err.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Server error.',
+      error: err.message
     });
   }
 };

@@ -95,7 +95,7 @@ const startOrResumeQuiz = async (req, res) => {
     // 4. Ambil semua soal dan opsi (kirim semua sekaligus)
     // PENTING: attribute is_correct JANGAN disertakan di sini
     const quizData = await Quiz.findByPk(quiz_id, {
-      attributes: ['id', 'title'],
+      attributes: ['id', 'title', 'pass_threshold'],
       include: {
         model: Question,
         as: 'questions',
@@ -121,10 +121,24 @@ const startOrResumeQuiz = async (req, res) => {
       return acc;
     }, {});
 
+    // 7. Cek best score dari attempts sebelumnya yang sudah completed
+    const bestAttempt = await UserQuizAttempt.findOne({
+      where: {
+        user_id: userId,
+        quiz_id: quiz_id,
+        status: 'completed'
+      },
+      order: [['score', 'DESC']], // Urutkan dari score tertinggi
+      attributes: ['score', 'completed_at']
+    });
+
     return res.status(200).json({
       attempt_id: attempt.id,
       quiz: quizData,
-      partial_answers: partialAnswers // Data jawaban tersimpan (resume)
+      partial_answers: partialAnswers, // Data jawaban tersimpan (resume)
+      best_score: bestAttempt ? bestAttempt.score : null,
+      best_score_date: bestAttempt ? bestAttempt.completed_at : null,
+      has_passed: bestAttempt && bestAttempt.score >= quizData.pass_threshold
     });
 
   } catch (err) {
@@ -207,6 +221,7 @@ const submitQuiz = async (req, res) => {
       where: { is_correct: true },
       include: {
         model: Question,
+        as: 'question',
         attributes: ['id'],
         where: { quiz_id: attempt.quiz_id }
       }
@@ -239,25 +254,49 @@ const submitQuiz = async (req, res) => {
     attempt.completed_at = new Date();
     await attempt.save();
 
-    // 6. Jika lulus kuis, otomatis tandai modul kuis selesai (Progres)
-    if (isPassed) {
-      const module = await Module.findOne({ where: { quiz_id: attempt.quiz_id }});
-      if (module) {
-        // Buat record di UserModuleProgress
+    // 6. Jika lulus kuis (atau pernah lulus sebelumnya), tandai modul kuis selesai (Progres)
+    const module = await Module.findOne({ where: { quiz_id: attempt.quiz_id }});
+    if (module) {
+      // Cek apakah pernah lulus (termasuk attempt yang sekarang)
+      const hasEverPassed = await UserQuizAttempt.findOne({
+        where: {
+          user_id: userId,
+          quiz_id: attempt.quiz_id,
+          status: 'completed',
+          score: { [Op.gte]: passThreshold }
+        }
+      });
+
+      if (hasEverPassed) {
+        // Buat record di UserModuleProgress jika belum ada
         await db.UserModuleProgress.findOrCreate({
           where: { user_id: userId, module_id: module.id }
         });
       }
     }
 
-    // 7. Kirim hasil
+    // 7. Cek apakah ini score terbaik
+    const allCompletedAttempts = await UserQuizAttempt.findAll({
+      where: {
+        user_id: userId,
+        quiz_id: attempt.quiz_id,
+        status: 'completed'
+      },
+      order: [['score', 'DESC']]
+    });
+
+    const isNewBest = allCompletedAttempts.length > 0 && allCompletedAttempts[0].id === attempt.id;
+
+    // 8. Kirim hasil
     return res.status(200).json({
       message: 'Kuis berhasil disubmit.',
       score: score,
       total_questions: totalQuestions,
       correct_count: correctCount,
       is_passed: isPassed,
-      pass_threshold: passThreshold
+      pass_threshold: passThreshold,
+      is_new_best: isNewBest,
+      best_score: allCompletedAttempts.length > 0 ? allCompletedAttempts[0].score : score
     });
 
   } catch (err) { 
