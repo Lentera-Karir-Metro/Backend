@@ -4,19 +4,13 @@
  * Menerapkan arsitektur Hybrid Auth: memverifikasi token dari Supabase 
  * dan memvalidasi role dari database MySQL lokal.
  */
-const { createClient } = require('@supabase/supabase-js');
+const jwt = require('jsonwebtoken');
 const db = require('../../models');
 const User = db.User;
 
-// Inisialisasi Supabase Client (menggunakan key ANON publik dari .env)
-const supabase = createClient(
-  process.env.SUPABASE_URL, 
-  process.env.SUPABASE_KEY
-);
-
 /**
  * @function protect
- * @description Middleware otentikasi utama. Memverifikasi JWT Supabase, 
+ * @description Middleware otentikasi utama. Memverifikasi JWT Lokal, 
  * lalu mengambil data user dari MySQL. User data dilekatkan ke req.user.
  * @param {object} req - Objek request (diharapkan membawa header Authorization: Bearer JWT)
  * @param {object} res - Objek response
@@ -33,30 +27,22 @@ const protect = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // 1. Verifikasi token ke Supabase (Otentikasi)
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
-    if (error) {
-      return res.status(401).json({ message: 'Token tidak valid.' });
-    }
+    // 1. Verifikasi token Lokal (JWT)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_key_lentera_karir');
 
-    // 2. Cari user di database MySQL kita berdasarkan supabase_auth_id (Otorisasi & Data Lokal)
-    // Ini adalah langkah penting dalam Hybrid Auth
-    const user = await User.findOne({ 
-      where: { supabase_auth_id: supabaseUser.id } 
-    });
+    // 2. Cari user di database MySQL kita berdasarkan ID dari token
+    const user = await User.findByPk(decoded.id);
 
     if (!user) {
-      // User ada di Supabase tapi belum tersinkronisasi/dihapus dari lokal
       return res.status(401).json({ message: 'User tidak ditemukan di database lokal.' });
     }
 
-    // 3. Simpan data user MySQL di req.user untuk digunakan oleh controller selanjutnya.
-    req.user = user; 
+    // 3. Attach user ke request object
+    req.user = user;
     next();
-
-  } catch (err) {
-    console.error('Error saat menjalankan middleware protect:', err.message);
-    return res.status(500).json({ message: 'Server error saat otentikasi.', error: err.message });
+  } catch (error) {
+    console.error('Auth Middleware Error:', error.message);
+    return res.status(401).json({ message: 'Token tidak valid.' });
   }
 };
 

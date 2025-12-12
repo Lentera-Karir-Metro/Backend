@@ -28,6 +28,12 @@ module.exports = (sequelize, DataTypes) => {
         as: 'module', // Alias untuk relasi
       });
 
+      // Sebuah Kuis adalah bagian dari (belongsTo) satu Course
+      Quiz.belongsTo(models.Course, {
+        foreignKey: 'course_id',
+        as: 'course',
+      });
+
       // Sebuah Kuis memiliki (hasMany) banyak Pertanyaan
       // Jika Kuis dihapus, pertanyaan di dalamnya ikut terhapus (Cascade)
       Quiz.hasMany(models.Question, {
@@ -53,6 +59,17 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       primaryKey: true,
       unique: true,
+      defaultValue: () => generateCustomId('QZ'),
+    },
+    course_id: {
+      type: DataTypes.STRING(16),
+      allowNull: true,
+      references: {
+        model: 'Courses',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE',
     },
     title: {
       type: DataTypes.STRING,
@@ -62,6 +79,25 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.FLOAT,
       allowNull: false,
       defaultValue: 0.75, // Syarat lulus 75% (0.75)
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    duration_minutes: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0, // 0 = Unlimited
+    },
+    max_attempts: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0, // 0 = Unlimited
+    },
+    sequence_order: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
     },
   }, {
     sequelize,

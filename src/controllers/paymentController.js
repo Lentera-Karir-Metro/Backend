@@ -132,6 +132,7 @@ const createCheckoutSession = async (req, res) => {
     // 7. Kirim respon ke Frontend
     return res.status(201).json({
       message: 'Sesi checkout berhasil dibuat.',
+      order_id: orderId, // <--- Ditambahkan agar mudah ditest di Postman
       original_price: originalPrice,
       discount_amount: discount,
       final_price: finalPrice,

@@ -46,7 +46,7 @@ const fileFilter = (req, file, cb) => {
 const uploadSingle = multer({
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB (bisa disesuaikan per tipe file)
+    fileSize: 1000 * 1024 * 1024, // 1GB (untuk accommodate video files besar)
   },
   fileFilter: fileFilter,
 });
@@ -57,7 +57,7 @@ const uploadSingle = multer({
 const uploadMultiple = multer({
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB per file
+    fileSize: 1000 * 1024 * 1024, // 1GB per file
   },
   fileFilter: fileFilter,
 });
@@ -71,7 +71,11 @@ const validateFileByBucket = (req, res, next) => {
     return next(); // Tidak ada file, lanjut ke fungsi berikutnya
   }
 
-  const { bucketType } = req.params;
+  // Jika bucketType ada di params, gunakan itu. Jika tidak, cek dari body module_type
+  const bucketType = req.params.bucketType || 
+                      (req.body.module_type === 'video' ? 'videos' : 
+                       req.body.module_type === 'ebook' ? 'ebooks' : 
+                       'thumbnails');
 
   // Konfigurasi per bucket
   const bucketConfig = {

@@ -37,6 +37,12 @@ router.use(isAdmin);
 // --- Rute untuk QUIZ (MASTER) ---
 
 /**
+ * @route /courses/:course_id/quizzes
+ * @description Membuat Quiz baru di dalam Course tertentu.
+ */
+router.post('/courses/:course_id/quizzes', createQuiz);
+
+/**
  * @route /quizzes
  * @description Rute untuk membuat dan mengambil daftar semua Quiz.
  */

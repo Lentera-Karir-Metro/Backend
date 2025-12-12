@@ -19,15 +19,76 @@ const { generateCustomId } = require('../utils/idGenerator');
  * @returns {object} Quiz yang baru dibuat.
  */
 const createQuiz = async (req, res) => {
-  const { title, pass_threshold } = req.body;
+  const { 
+    title, 
+    pass_threshold, 
+    description, 
+    duration_minutes, 
+    max_attempts, 
+    sequence_order, 
+    course_id: bodyCourseId,
+    questions // Array of questions with options
+  } = req.body;
+  
+  const { course_id: paramCourseId } = req.params; // Ambil course_id dari URL jika ada
+
+  // Prioritaskan course_id dari URL (params), jika tidak ada ambil dari Body
+  const finalCourseId = paramCourseId || bodyCourseId || null;
+
+  const transaction = await db.sequelize.transaction();
+
   try {
+    // 1. Create Quiz Header
     const quiz = await Quiz.create({
       // ID (QZ-XXXXXX) otomatis dibuat oleh Hook di model Quiz
       title,
-      pass_threshold: pass_threshold || 0.75, 
+      pass_threshold: pass_threshold || 0.75,
+      course_id: finalCourseId,
+      description,
+      duration_minutes: duration_minutes || 0,
+      max_attempts: max_attempts !== undefined ? max_attempts : 0, // 0 = Unlimited
+      sequence_order: sequence_order || 1
+    }, { transaction });
+
+    // 2. Process Nested Questions (if any)
+    if (questions && Array.isArray(questions) && questions.length > 0) {
+      for (const qData of questions) {
+        const question = await Question.create({
+          quiz_id: quiz.id,
+          question_text: qData.question_text,
+          question_type: qData.question_type || 'multiple_choice'
+        }, { transaction });
+
+        // 3. Process Nested Options (if any)
+        if (qData.options && Array.isArray(qData.options) && qData.options.length > 0) {
+          const optionsData = qData.options.map(opt => ({
+            question_id: question.id,
+            option_text: opt.option_text,
+            is_correct: opt.is_correct || false
+          }));
+          
+          await Option.bulkCreate(optionsData, { transaction });
+        }
+      }
+    }
+
+    await transaction.commit();
+
+    // Fetch full data to return
+    const fullQuiz = await Quiz.findByPk(quiz.id, {
+      include: {
+        model: Question,
+        as: 'questions',
+        include: {
+          model: Option,
+          as: 'options'
+        }
+      }
     });
-    return res.status(201).json(quiz);
+
+    return res.status(201).json(fullQuiz);
   } catch (err) {
+    await transaction.rollback();
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };

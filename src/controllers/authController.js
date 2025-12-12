@@ -4,241 +4,231 @@
  * Menggunakan pendekatan Hybrid: Login di Supabase -> Sinkronisasi data ke MySQL.
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const db = require('../../models');
 const User = db.User;
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { sendVerificationEmail } = require('../utils/emailService');
+const { OAuth2Client } = require('google-auth-library');
 
-// Inisialisasi Supabase Client
-// Menggunakan ANON KEY (Public) karena aksi ini dilakukan atas nama user yang sedang login.
-const supabase = createClient(
-  process.env.SUPABASE_URL, 
-  process.env.SUPABASE_KEY
-);
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Inisialisasi Supabase Admin Client dengan Service Role Key
-// Service Role Key memiliki akses penuh termasuk Admin API
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET || 'secret_key_lentera_karir', {
+    expiresIn: '30d',
+  });
+};
 
-/**
- * @function syncUser
- * @description Menyinkronkan data user yang baru login di Supabase ke database MySQL lokal.
- * Jika user belum ada di MySQL, akan dibuatkan record baru.
- * @route POST /api/v1/auth/sync
- *
- * @param {object} req - Objek request (Header Authorization: Bearer <TOKEN>)
- * @param {object} res - Objek response
- * @returns {object} Data user dari database MySQL.
- */
-const syncUser = async (req, res) => {
-  // 1. Validasi Header Authorization
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token tidak ada atau format salah.' });
-  }
-
-  const token = authHeader.split(' ')[1];
+const register = async (req, res) => {
+  // Terima baik field 'username' maupun 'name'; fallback ke local-part email
+  const { username: usernameRaw, name, email, password } = req.body;
+  const derivedUsername = (usernameRaw && String(usernameRaw).trim())
+    || (name && String(name).trim())
+    || (email && String(email).split('@')[0]);
+  const username = derivedUsername;
 
   try {
-    // 2. Verifikasi JWT ke Supabase (Memastikan token asli & valid)
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
+    const userExists = await User.findOne({ where: { email } });
 
-    if (error) return res.status(401).json({ message: 'Token tidak valid.' });
-    if (!supabaseUser) return res.status(404).json({ message: 'User Supabase tidak ditemukan.' });
-
-    const supabaseAuthId = supabaseUser.id;
-
-    // 3. Cek keberadaan User di MySQL
-    let user = await User.findOne({ 
-      where: { supabase_auth_id: supabaseAuthId } 
-    });
-
-    // 4. Jika tidak ada, Buat User Baru
-    if (!user) {
-      // Logika Fallback Nama:
-      // 1. Cek 'username' (dari form register manual)
-      // 2. Cek 'full_name' (dari login Google)
-      // 3. Ambil bagian depan email (jika keduanya kosong)
-      const usernameInput = supabaseUser.user_metadata.username || 
-                            supabaseUser.user_metadata.full_name || 
-                            supabaseUser.email.split('@')[0];
-
-      user = await User.create({
-        supabase_auth_id: supabaseAuthId,
-        email: supabaseUser.email,
-        username: usernameInput,
-        // Role otomatis di-set 'user' oleh default value Model
-        // ID otomatis di-generate oleh Hook 'beforeCreate' di Model
-      });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
     }
 
-    // 5. Kembalikan data user lokal
-    return res.status(200).json({
-      message: 'Sinkronisasi berhasil.',
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    // Validasi minimum input
+    if (!email || !password || !username) {
+      return res.status(400).json({ message: 'Email, password, dan username wajib diisi.' });
+    }
+
+    const user = await User.create({
+      username,
+      email,
+      password, // Akan di-hash oleh hook
+      verification_token: verificationToken,
+      is_verified: false,
+      role: 'user',
+      status: 'active'
+    });
+
+    // Kirim email verifikasi (SMTP/Gmail). Jika gagal, registrasi tetap sukses.
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+      res.status(201).json({
+        message: 'Registrasi berhasil! Email verifikasi telah dikirim ke ' + user.email,
+        user: { id: user.id, username: user.username, email: user.email }
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError.message);
+      res.status(201).json({
+        message: 'Registrasi berhasil, namun email verifikasi gagal dikirim. Silakan coba lagi beberapa saat.',
+        user: { id: user.id, username: user.username, email: user.email }
+      });
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+};
+
+const verifyEmail = async (req, res) => {
+  const { token } = req.query;
+
+  try {
+    const user = await User.findOne({ where: { verification_token: token } });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Token verifikasi tidak valid atau kadaluarsa.' });
+    }
+
+    user.is_verified = true;
+    user.verification_token = null;
+    await user.save();
+
+    res.status(200).json({ message: 'Email berhasil diverifikasi. Silakan login.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Email atau password salah.' });
+    }
+
+    if (!user.password) {
+       return res.status(400).json({ message: 'Akun ini terdaftar menggunakan Google. Silakan login dengan Google.' });
+    }
+
+    const isMatch = await user.validatePassword(password);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Email atau password salah.' });
+    }
+
+    if (!user.is_verified) {
+      return res.status(401).json({ message: 'Email belum diverifikasi. Silakan cek email Anda.' });
+    }
+
+    res.json({
+      message: 'Login berhasil',
+      token: generateToken(user.id),
       user: {
         id: user.id,
-        email: user.email,
         username: user.username,
-        role: user.role
-      }
+        email: user.email,
+        role: user.role,
+      },
     });
-
-  } catch (err) {
-    console.error('Error saat sync user:', err.message);
-    return res.status(500).json({ message: 'Server error.', error: err.message });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-/**
- * @function refreshToken
- * @description Wrapper untuk memperbarui session token (Refresh Token Rotation).
- * Biasanya ditangani otomatis oleh library Supabase di Frontend, tapi disediakan di sini sebagai opsi.
- * @route POST /api/v1/auth/refresh-token
- *
- * @param {object} req - Objek request (Body: { refresh_token })
- * @param {object} res - Objek response
- * @returns {object} Token akses dan refresh token baru.
- */
-const refreshToken = async (req, res) => {
-  try {
-    const { refresh_token } = req.body;
-
-    if (!refresh_token) {
-      return res.status(400).json({ error: 'Refresh token is required' });
-    }
-
-    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
-
-    if (error) {
-      return res.status(401).json({ error: 'Invalid refresh token', details: error.message });
-    }
-
-    return res.status(200).json({
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_in: data.session.expires_in,
-    });
-  } catch (err) {
-    console.error('Error refreshing token:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-/**
- * @function forgotPassword
- * @description Mengirim email reset password menggunakan Supabase Auth Admin API.
- * @route POST /api/v1/auth/forgot-password
- */
-const forgotPassword = async (req, res) => {
-  const { email, redirectTo } = req.body;
-
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ message: 'Format email tidak valid.' });
-  }
-
-  if (!redirectTo) {
-    return res.status(400).json({ message: 'Redirect URL harus disertakan.' });
-  }
+const googleLogin = async (req, res) => {
+  const { token } = req.body;
 
   try {
-    // Check if user exists in MySQL first
-    const user = await User.findOne({ 
-      where: { email: email.trim() } 
-    });
-
-    if (!user) {
-      return res.status(404).json({ 
-        message: 'Email tidak terdaftar dalam sistem.' 
-      });
-    }
-
-    // Method 1: Try with Admin Client first (has more permissions)
-    console.log(`🔄 Attempting to send reset email to: ${email}`);
+    let googleUser;
     
-    const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email.trim(),
-      options: {
-        redirectTo: redirectTo
-      }
-    });
-
-    if (!adminError && adminData) {
-      console.log('✅ Reset password link generated successfully');
-      
-      // In production with SMTP configured, Supabase will send email automatically
-      // For development, we can log the link
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('🔗 Reset Password Link (DEV):', adminData.properties.action_link);
-      }
-      
-      return res.status(200).json({
-        message: 'Email reset password telah dikirim. Silakan cek inbox Anda.',
-        ...(process.env.NODE_ENV !== 'production' && { 
-          dev_link: adminData.properties.action_link,
-          dev_note: 'Link ini hanya muncul di development mode'
-        })
-      });
-    }
-
-    // Method 2: Fallback to regular client if admin method fails
-    console.log('⚠️  Admin method failed, trying regular method...');
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: redirectTo
-    });
-
-    if (error) {
-      console.error('❌ Supabase forgot password error:', error);
-      
-      // Handle rate limit
-      if (error.message?.includes('rate limit') || error.message?.includes('429')) {
-        return res.status(429).json({ 
-          message: 'Terlalu banyak permintaan. Silakan tunggu beberapa saat.' 
+    // Check if it's a JWT (ID Token) - usually has 3 parts separated by dots
+    if (token.split('.').length === 3) {
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID,
         });
-      }
-      
-      // Handle SMTP/Email sending errors - still return success
-      if (error.message?.includes('sending') || error.message?.includes('email') || error.status === 500) {
-        console.error('⚠️  Email delivery failed - SMTP not configured properly');
-        console.error('💡 Solution: Configure Custom SMTP in Supabase Dashboard → Authentication → Email');
+        const payload = ticket.getPayload();
+        googleUser = {
+            email: payload.email,
+            name: payload.name,
+            googleId: payload.sub,
+            picture: payload.picture
+        };
+    } else {
+        // Assume Access Token (from useGoogleLogin)
+        // Fetch user info from Google UserInfo endpoint
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
         
-        // Return success to user (they can still reset via Supabase Dashboard)
-        return res.status(200).json({ 
-          message: 'Permintaan reset password berhasil diproses.',
-          note: 'Jika email tidak diterima dalam 5 menit, silakan hubungi administrator.'
-        });
+        if (!response.ok) {
+            throw new Error('Failed to fetch user info from Google');
+        }
+        
+        const data = await response.json();
+        googleUser = {
+            email: data.email,
+            name: data.name,
+            googleId: data.sub,
+            picture: data.picture
+        };
+    }
+
+    const { email, name, googleId, picture } = googleUser;
+
+    let user = await User.findOne({ where: { email } });
+
+    if (user) {
+      if (!user.is_verified) {
+        user.is_verified = true;
+        await user.save();
       }
-      
-      return res.status(400).json({ 
-        message: error.message || 'Gagal mengirim email reset password.' 
+      if (!user.supabase_auth_id) {
+          user.supabase_auth_id = googleId;
+          await user.save();
+      }
+    } else {
+      user = await User.create({
+        username: name,
+        email,
+        password: null,
+        is_verified: true,
+        supabase_auth_id: googleId,
+        role: 'user',
+        status: 'active'
       });
     }
 
-    console.log('✅ Reset email sent successfully');
-    return res.status(200).json({
-      message: 'Email reset password telah dikirim. Silakan cek inbox Anda.'
+    res.json({
+      message: 'Login Google berhasil',
+      token: generateToken(user.id),
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
     });
-
-  } catch (err) {
-    console.error('❌ Error forgot password:', err);
-    return res.status(500).json({ 
-      message: 'Terjadi kesalahan server.', 
-      error: err.message 
-    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(400).json({ message: 'Google login failed' });
   }
 };
 
-// Ekspor semua fungsi
-module.exports = { 
-  syncUser, 
-  refreshToken,
-  forgotPassword 
+const forgotPassword = async (req, res) => {
+    res.status(501).json({ message: 'Not implemented yet' });
+};
+
+const refreshToken = async (req, res) => {
+    res.status(501).json({ message: 'Not implemented yet' });
+};
+
+module.exports = {
+  register,
+  verifyEmail,
+  login,
+  googleLogin,
+  forgotPassword,
+  refreshToken
 };

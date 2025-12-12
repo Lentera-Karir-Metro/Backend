@@ -36,6 +36,11 @@ module.exports = (sequelize, DataTypes) => {
     question_text: {
       type: DataTypes.TEXT,
       allowNull: false
+    },
+    question_type: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'multiple_choice'
     }
   }, {
     sequelize,

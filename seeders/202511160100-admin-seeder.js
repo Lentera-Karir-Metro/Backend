@@ -1,63 +1,72 @@
 // File: seeders/202511160100-admin-seeder.js
 'use strict';
 const { generateCustomId } = require('../src/utils/idGenerator');
+const bcrypt = require('bcryptjs');
 
 // ====================================================================
 // === KONFIGURASI ADMIN ===
 // ####################################################################
 
-/**
- * @const {string} ADMIN_SUPABASE_UID - ID unik yang didapat dari Supabase Auth.
- * Kunci ini menghubungkan user di Supabase dengan role 'admin' di MySQL.
- */
-const ADMIN_SUPABASE_UID = "1dcef0f9-f66f-41c3-b6ec-04dabcef4852";
 const ADMIN_EMAIL = "daffaraelanaqiali30@gmail.com";
 const ADMIN_USERNAME = "Admin Daffarael";
+const ADMIN_PASSWORD = "yaaadaffa"; // Password default jika user belum ada
 
 // ####################################################################
 
 module.exports = {
-  /**
-   * Fungsi 'up' menambahkan user admin ke tabel Users.
-   * Menggunakan 'bulkInsert' dengan 'updateOnDuplicate' untuk memastikan
-   * role 'admin' selalu diterapkan jika user sudah ada.
-   * * @param {import('sequelize').QueryInterface} queryInterface
-   * @param {import('sequelize').Sequelize} Sequelize
-   */
   async up (queryInterface, Sequelize) {
-    // Cek keamanan: Pastikan UID sudah diubah dari placeholder
-    if (!ADMIN_SUPABASE_UID || ADMIN_SUPABASE_UID.includes("PASTE_UID")) {
-      throw new Error("Harap masukkan ADMIN_SUPABASE_UID di file seeder.");
-    }
+    // Hash password terlebih dahulu
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
 
-    // Buat ID kustom untuk user MySQL (misal: LT-XXXXXX)
-    const adminUserId = generateCustomId('LT');
+    // 1. Cek apakah user dengan email ini sudah ada
+    const existingUsers = await queryInterface.sequelize.query(
+      `SELECT id FROM Users WHERE email = '${ADMIN_EMAIL}' LIMIT 1`,
+      { type: queryInterface.sequelize.QueryTypes.SELECT }
+    );
 
-    await queryInterface.bulkInsert('Users', [
-      {
+    if (existingUsers.length > 0) {
+      // 2. Jika sudah ada (misal daftar manual), UPDATE role DAN PASSWORD
+      console.log(`User ${ADMIN_EMAIL} sudah ada. Mengupdate role dan password...`);
+      await queryInterface.bulkUpdate('Users', 
+        { 
+          role: 'admin',
+          password: hashedPassword, // <-- Paksa update password agar sesuai dengan seeder
+          is_verified: true, 
+          updatedAt: new Date()
+        },
+        { email: ADMIN_EMAIL }
+      );
+    } else {
+      // 3. Jika belum ada, INSERT user baru sebagai admin
+      console.log(`User ${ADMIN_EMAIL} belum ada. Membuat user admin baru...`);
+      
+      // Generate ID
+      let adminUserId;
+      try {
+          adminUserId = generateCustomId('LT');
+      } catch (e) {
+          adminUserId = `LT-${Date.now()}`;
+      }
+
+      await queryInterface.bulkInsert('Users', [{
         id: adminUserId,
-        supabase_auth_id: ADMIN_SUPABASE_UID,
         email: ADMIN_EMAIL,
-        username: ADMIN_USERNAME, // Menggunakan kolom 'username' sesuai skema terbaru
-        role: 'admin', // <-- Peran paksa (forced role) untuk user admin
+        username: ADMIN_USERNAME,
+        password: hashedPassword,
+        role: 'admin',
+        is_verified: true,
         status: 'active',
         createdAt: new Date(),
         updatedAt: new Date(),
-      }
-    ], {
-      // Jika user sudah ada (konflik pada supabase_auth_id), update role-nya saja
-      updateOnDuplicate: ['role', 'updatedAt', 'username'] 
-    });
+        supabase_auth_id: null 
+      }]);
+    }
   },
 
-  /**
-   * Fungsi 'down' menghapus data admin yang di-seed.
-   * * @param {import('sequelize').QueryInterface} queryInterface
-   * @param {import('sequelize').Sequelize} Sequelize
-   */
   async down (queryInterface, Sequelize) {
-    await queryInterface.bulkDelete('Users', {
-      supabase_auth_id: ADMIN_SUPABASE_UID
-    }, {});
+    // Kembalikan role jadi user biasa (opsional) atau hapus
+    // Di sini kita hapus saja jika emailnya cocok
+    await queryInterface.bulkDelete('Users', { email: ADMIN_EMAIL }, {});
   }
 };

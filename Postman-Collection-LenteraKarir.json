@@ -1,939 +1,1176 @@
 {
-	"info": {
-		"_postman_id": "lentera-karir-final-v2",
-		"name": "Lentera Karir API (Final)",
-		"description": "Koleksi API Lengkap untuk Project Lentera Karir.\nUpdated: Mendukung fitur Diskon, Mentor, Rating, dan Kategori.",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "0. Auth & Setup (Supabase)",
-			"item": [
-				{
-					"name": "1. Register User (Ke Supabase)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "apikey",
-								"value": "{{anonKey}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"email\": \"user_baru@gmail.com\",\n  \"password\": \"Password123!\",\n  \"data\": {\n    \"username\": \"si_paling_coding\"\n  }\n}"
-						},
-						"url": {
-							"raw": "{{supabaseUrl}}/auth/v1/signup",
-							"host": [
-								"{{supabaseUrl}}"
-							],
-							"path": [
-								"auth",
-								"v1",
-								"signup"
-							]
-						},
-						"description": "Mendaftar ke Supabase. JANGAN LUPA set variabel 'anonKey' dan 'supabaseUrl' di Environment Postman."
-					},
-					"response": []
-				},
-				{
-					"name": "2. Login User (Dapat Token)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.access_token) {",
-									"    pm.environment.set(\"userToken\", jsonData.access_token);",
-									"    console.log(\"User Token saved!\");",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "apikey",
-								"value": "{{anonKey}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"email\": \"user_baru@gmail.com\",\n  \"password\": \"Password123!\"\n}"
-						},
-						"url": {
-							"raw": "{{supabaseUrl}}/auth/v1/token?grant_type=password",
-							"host": [
-								"{{supabaseUrl}}"
-							],
-							"path": [
-								"auth",
-								"v1",
-								"token"
-							],
-							"query": [
-								{
-									"key": "grant_type",
-									"value": "password"
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "1. Auth & Sync (Backend)",
-			"item": [
-				{
-					"name": "Sync User (Wajib setelah Login)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{baseUrl}}/auth/sync",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"auth",
-								"sync"
-							]
-						},
-						"description": "Panggil ini setiap kali user login/register untuk menyimpan data ke MySQL. Body kosong saja."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "2. Admin - Manajemen Konten",
-			"item": [
-				{
-					"name": "1. Create Learning Path (Lengkap)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.id) {",
-									"    pm.environment.set(\"lpId\", jsonData.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{ "key": "title", "value": "Bootcamp: Kick-Start Karier Digital", "type": "text" },
-								{ "key": "description", "value": "Program pelatihan intensif...", "type": "text" },
-								{ "key": "price", "value": "250000", "type": "text" },
-								{ "key": "discount_amount", "value": "50000", "type": "text" },
-								{ "key": "rating", "value": "4.9", "type": "text" },
-								{ "key": "review_count", "value": "320", "type": "text" },
-								{ "key": "category", "value": "Digital Marketing", "type": "text" },
-								{ "key": "level", "value": "Beginner", "type": "text" },
-								{ "key": "mentor_name", "value": "Ayu Putri", "type": "text" },
-								{ "key": "mentor_title", "value": "Co-Founder @bijaktechno", "type": "text" },
-								{ "key": "mentor_avatar_url", "value": "https://ui-avatars.com/api/?name=Ayu+Putri", "type": "text" },
-								{ "key": "thumbnail", "type": "file", "src": "" }
-							]
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/learning-paths",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"learning-paths"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "2. Add Course (Bab)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.id) {",
-									"    pm.environment.set(\"courseId\", jsonData.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"title\": \"Fundamental & Orientasi Karier Digital\",\n    \"description\": \"Bab pertama tentang dasar mindset digital\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/learning-paths/{{lpId}}/courses",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"learning-paths",
-								"{{lpId}}",
-								"courses"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "3. Add Module (Video)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{ "key": "title", "value": "Analisis Tren", "type": "text" },
-								{ "key": "module_type", "value": "video", "type": "text" },
-								{ "key": "durasi_video_menit", "value": "10", "type": "text" },
-								{ "key": "estimasi_waktu_menit", "value": "15", "type": "text" },
-								{ "key": "file", "type": "file", "src": "" }
-							]
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/courses/{{courseId}}/modules",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"courses",
-								"{{courseId}}",
-								"modules"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "3b. Add Module (Ebook)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{ "key": "title", "value": "Ebook Panduan SEO", "type": "text" },
-								{ "key": "module_type", "value": "ebook", "type": "text" },
-								{ "key": "estimasi_waktu_menit", "value": "20", "type": "text" },
-								{ "key": "file", "type": "file", "src": "" }
-							]
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/courses/{{courseId}}/modules",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"courses",
-								"{{courseId}}",
-								"modules"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "4. Admin - Articles (Create)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{ "key": "title", "value": "Panduan SEO 2025", "type": "text" },
-								{ "key": "description", "value": "Ringkasan singkat artikel...", "type": "text" },
-								{ "key": "category", "value": "SEO", "type": "text" },
-								{ "key": "content", "value": "<p>Isi artikel lengkap...</p>", "type": "text" },
-								{ "key": "thumbnail", "type": "file", "src": "" }
-							]
-						},
-						"url": { "raw": "{{baseUrl}}/admin/articles", "host": [ "{{baseUrl}}" ], "path": [ "admin", "articles" ] }
-					},
-					"response": []
-				},
-				{
-					"name": "5. Admin - Articles (Update)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{ "key": "title", "value": "Panduan SEO 2025 - Update", "type": "text" },
-								{ "key": "description", "value": "Update ringkasan...", "type": "text" },
-								{ "key": "category", "value": "SEO", "type": "text" },
-								{ "key": "content", "value": "<p>Konten artikel diperbarui...</p>", "type": "text" },
-								{ "key": "thumbnail", "type": "file", "src": "" }
-							]
-						},
-						"url": { "raw": "{{baseUrl}}/admin/articles/{{articleId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "articles", "{{articleId}}" ] }
-					},
-					"response": []
-				},
-				{
-					"name": "6. Admin - Articles (Delete)",
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
-						],
-						"url": { "raw": "{{baseUrl}}/admin/articles/{{articleId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "articles", "{{articleId}}" ] }
-					},
-					"response": []
-				},
-				{
-					"name": "7. Admin - Certificates (Update)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{ "key": "certificate", "type": "file", "src": "" }
-							]
-						},
-						"url": { "raw": "{{baseUrl}}/admin/certificates/{{certId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "certificates", "{{certId}}" ] }
-					},
-					"response": []
-				},
-				{
-					"name": "8. Admin - Certificates (Delete)",
-					"request": {
-						"method": "DELETE",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
-						],
-						"url": { "raw": "{{baseUrl}}/admin/certificates/{{certId}}", "host": [ "{{baseUrl}}" ], "path": [ "admin", "certificates", "{{certId}}" ] }
-					},
-					"response": []
-				},
-				{
-					"name": "3c. Add Module (Quiz)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"title\": \"Quiz Sesi 1\",\n    \"module_type\": \"quiz\",\n    \"quiz_id\": \"{{quizMasterId}}\",\n    \"estimasi_waktu_menit\": 30\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/courses/{{courseId}}/modules",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"courses",
-								"{{courseId}}",
-								"modules"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "3. Admin - Quiz Bank",
-			"item": [
-				{
-					"name": "Create Quiz Master",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.id) {",
-									"    pm.environment.set(\"quizMasterId\", jsonData.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"title\": \"Final Quiz Digital Marketing\",\n    \"pass_threshold\": 0.75\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/quizzes",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"quizzes"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Question",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.id) {",
-									"    pm.environment.set(\"questionId\", jsonData.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"question_text\": \"Apa kepanjangan SEO?\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/quizzes/{{quizMasterId}}/questions",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"quizzes",
-								"{{quizMasterId}}",
-								"questions"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Option (Correct)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"option_text\": \"Search Engine Optimization\",\n    \"is_correct\": true\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/questions/{{questionId}}/options",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"questions",
-								"{{questionId}}",
-								"options"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Option (Wrong)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{adminToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"option_text\": \"Search Engine Operation\",\n    \"is_correct\": false\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/questions/{{questionId}}/options",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"questions",
-								"{{questionId}}",
-								"options"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "4. User - Transaction",
-			"item": [
-				{
-					"name": "Checkout (Beli Kelas)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"learning_path_id\": \"{{lpId}}\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/payments/checkout",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"payments",
-								"checkout"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "5. System - Webhooks",
-			"item": [
-				{
-					"name": "Simulasi Bayar Sukses (Midtrans)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"transaction_status\": \"settlement\",\n    \"fraud_status\": \"accept\",\n    \"order_id\": \"ORDER-MANUAL-TEST-001\",\n    \"metadata\": {\n        \"user_id\": \"LT-XXXXXX\",\n        \"learning_path_id\": \"{{lpId}}\"\n    }\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/webhooks/midtrans",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"webhooks",
-								"midtrans"
-							]
-						},
-						"description": "Ganti LT-XXXXXX dengan ID User asli dari Database MySQL Anda."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "6. User - Learning & Quiz",
-			"item": [
-				{
-					"name": "Get Dashboard (Kelas Saya)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/learn/dashboard",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"learn",
-								"dashboard"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Learning Path Content",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/learn/learning-paths/{{lpId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"learn",
-								"learning-paths",
-								"{{lpId}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Mark Module Complete",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/learn/modules/MD-XXXXXX/complete",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"learn",
-								"modules",
-								"MD-XXXXXX",
-								"complete"
-							]
-						},
-						"description": "Ganti MD-XXXXXX dengan ID Modul yang mau diselesaikan."
-					},
-					"response": []
-				},
-				{
-					"name": "Start Quiz",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"if (jsonData.attempt_id) {",
-									"    pm.environment.set(\"attemptId\", jsonData.attempt_id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/learn/quiz/{{quizMasterId}}/start",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"learn",
-								"quiz",
-								"{{quizMasterId}}",
-								"start"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Submit Quiz",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{userToken}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/learn/attempts/{{attemptId}}/submit",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"learn",
-								"attempts",
-								"{{attemptId}}",
-								"submit"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "7. Public Catalog",
-			"item": [
-				{
-					"name": "Get Public LP List",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/catalog/learning-paths",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"catalog",
-								"learning-paths"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Public LP Detail",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/catalog/learning-paths/{{lpId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"catalog",
-								"learning-paths",
-								"{{lpId}}"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		}
-	],
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "baseUrl",
-			"value": "http://localhost:3000/api/v1",
-			"type": "string"
-		},
-		{
-			"key": "anonKey",
-			"value": "MASUKKAN_SUPABASE_ANON_KEY_DISINI",
-			"type": "string"
-		},
-		{
-			"key": "supabaseUrl",
-			"value": "MASUKKAN_SUPABASE_URL_PROJECT_DISINI",
-			"type": "string"
-		},
-		{
-			"key": "adminToken",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "userToken",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "lpId",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "courseId",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "quizMasterId",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "questionId",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "attemptId",
-			"value": "",
-			"type": "string"
-		}
-	]
+  "info": {
+    "name": "LenteraKarir API (Complete & Verified)",
+    "description": "Complete Postman Collection for LenteraKarir Backend covering all routes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Smart Auth Switching Logic",
+          "let token = pm.collectionVariables.get('user_token'); // Default to User",
+          "",
+          "// If URL contains '/admin', switch to Admin Token",
+          "if (pm.request.url.path.join('/').includes('admin')) {",
+          "    token = pm.collectionVariables.get('admin_token');",
+          "}",
+          "",
+          "// Fallback: If specific token not found, try generic 'auth_token'",
+          "if (!token) token = pm.collectionVariables.get('auth_token');",
+          "",
+          "if (token) {",
+          "    pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + token});",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"testuser@example.com\",\n    \"password\": \"Password123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () { pm.response.to.have.status(201); });",
+                  "try {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) pm.collectionVariables.set(\"verification_token\", jsonData.token);",
+                  "} catch (e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-email?token={{verification_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify-email"],
+              "query": [{ "key": "token", "value": "{{verification_token}}" }]
+            }
+          }
+        },
+        {
+          "name": "Login (User)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"testuser@example.com\",\n    \"password\": \"Password123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"auth_token\", jsonData.token);",
+                  "    pm.collectionVariables.set(\"user_token\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"daffaraelanaqiali30@gmail.com\",\n    \"password\": \"yaaadaffa\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"auth_token\", jsonData.token);",
+                  "    pm.collectionVariables.set(\"admin_token\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Google Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"GOOGLE_ID_TOKEN_HERE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/auth/google"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"testuser@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refreshToken\": \"REFRESH_TOKEN_HERE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/auth/refresh-token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Public Catalog",
+      "item": [
+        {
+          "name": "List Learning Paths",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/catalog/learning-paths"
+          }
+        },
+        {
+          "name": "Get Learning Path Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/catalog/learning-paths/{{lp_id}}"
+          }
+        },
+        {
+          "name": "List Articles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles"
+          }
+        },
+        {
+          "name": "Latest Articles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/latest"
+          }
+        },
+        {
+          "name": "Article Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/categories"
+          }
+        },
+        {
+          "name": "Articles by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/category/Technology"
+          }
+        },
+        {
+          "name": "Get Article Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/{{article_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. User Dashboard",
+      "item": [
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/dashboard/stats"
+          }
+        },
+        {
+          "name": "Continue Learning",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/dashboard/continue-learning"
+          }
+        },
+        {
+          "name": "Recommended Courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/dashboard/recommended"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Learning (User)",
+      "item": [
+        {
+          "name": "My Dashboard (Enrolled LPs)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/dashboard"
+          }
+        },
+        {
+          "name": "My Ebooks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/ebooks"
+          }
+        },
+        {
+          "name": "Get Learning Path Content (Full)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/learning-paths/{{lp_id}}"
+          }
+        },
+        {
+          "name": "Mark Module Complete",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/modules/{{module_id}}/complete"
+          }
+        },
+        {
+          "name": "Start/Resume Quiz",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/quiz/{{quiz_id}}/start"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.attempt_id) pm.collectionVariables.set(\"attempt_id\", jsonData.data.attempt_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save Partial Answer",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"question_id\": {{question_id}},\n    \"option_id\": {{option_id}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/learn/attempts/{{attempt_id}}/answer"
+          }
+        },
+        {
+          "name": "Submit Quiz",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/attempts/{{attempt_id}}/submit"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Certificates",
+      "item": [
+        {
+          "name": "My Certificates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/certificates"
+          }
+        },
+        {
+          "name": "Get Certificate Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/certificates/{{certificate_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Payments",
+      "item": [
+        {
+          "name": "Checkout (Midtrans)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"learning_path_id\": \"{{lp_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/payments/checkout"
+          }
+        },
+        {
+          "name": "Check Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/status/{{payment_id}}"
+          }
+        },
+        {
+          "name": "Sync Pending Payments",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/sync"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Admin - Learning Paths",
+      "item": [
+        {
+          "name": "Create Learning Path",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "New Learning Path", "type": "text" },
+                { "key": "description", "value": "Description here", "type": "text" },
+                { "key": "price", "value": "100000", "type": "text" },
+                { "key": "rating", "value": "4.8", "type": "text" },
+                { "key": "review_count", "value": "120", "type": "text" },
+                { "key": "thumbnail", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/admin/learning-paths"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"lp_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List All Learning Paths",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/learning-paths"
+          }
+        },
+        {
+          "name": "Get Learning Path (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}"
+          }
+        },
+        {
+          "name": "Update Learning Path",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Updated Title", "type": "text" },
+                { "key": "rating", "value": "5.0", "type": "text" },
+                { "key": "review_count", "value": "200", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}"
+          }
+        },
+        {
+          "name": "Delete Learning Path",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Admin - Courses & Modules",
+      "item": [
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"New Course\",\n    \"description\": \"Course Description\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}/courses"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"course_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reorder Courses",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"course_ids\": [{{course_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}/reorder-courses"
+          }
+        },
+        {
+          "name": "Update Course",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Updated Course Title\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}"
+          }
+        },
+        {
+          "name": "Delete Course",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}"
+          }
+        },
+        {
+          "name": "Create Module (Video)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "New Video Module", "type": "text" },
+                { "key": "module_type", "value": "video", "type": "text" },
+                { "key": "estimasi_waktu_menit", "value": "10", "type": "text" },
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/modules"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"module_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Module (Ebook)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "New Ebook Module", "type": "text" },
+                { "key": "module_type", "value": "ebook", "type": "text" },
+                { "key": "estimasi_waktu_menit", "value": "15", "type": "text" },
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/modules"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"module_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Quiz (in Course)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Final Quiz\",\n    \"pass_threshold\": 0.8,\n    \"description\": \"This is the final quiz for the course.\",\n    \"duration_minutes\": 30,\n    \"max_attempts\": 0,\n    \"sequence_order\": 1,\n    \"questions\": [\n        {\n            \"question_text\": \"What is the capital of Indonesia?\",\n            \"question_type\": \"multiple_choice\",\n            \"options\": [\n                { \"option_text\": \"Jakarta\", \"is_correct\": true },\n                { \"option_text\": \"Bandung\", \"is_correct\": false },\n                { \"option_text\": \"Surabaya\", \"is_correct\": false },\n                { \"option_text\": \"Medan\", \"is_correct\": false }\n            ]\n        },\n        {\n            \"question_text\": \"React is a library for building user interfaces.\",\n            \"question_type\": \"true_false\",\n            \"options\": [\n                { \"option_text\": \"True\", \"is_correct\": true },\n                { \"option_text\": \"False\", \"is_correct\": false }\n            ]\n        }\n    ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/quizzes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) pm.collectionVariables.set(\"quiz_id\", jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reorder Modules",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"module_ids\": [{{module_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/reorder-modules"
+          }
+        },
+        {
+          "name": "Update Module",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Updated Module", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/admin/modules/{{module_id}}"
+          }
+        },
+        {
+          "name": "Delete Module",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/modules/{{module_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Admin - Quizzes",
+      "item": [
+        {
+          "name": "Create Quiz",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"New Quiz\",\n    \"course_id\": {{course_id}},\n    \"passing_score\": 70\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/quizzes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"quiz_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Quizzes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/quizzes"
+          }
+        },
+        {
+          "name": "Get Quiz Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}"
+          }
+        },
+        {
+          "name": "Update Quiz",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Updated Quiz Title\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}"
+          }
+        },
+        {
+          "name": "Delete Quiz",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}"
+          }
+        },
+        {
+          "name": "Add Question",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"question_text\": \"What is 2+2?\",\n    \"question_type\": \"multiple_choice\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}/questions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"question_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Question",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"question_text\": \"What is 2+2 (Updated)?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/questions/{{question_id}}"
+          }
+        },
+        {
+          "name": "Delete Question",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/questions/{{question_id}}"
+          }
+        },
+        {
+          "name": "Add Option",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"option_text\": \"4\",\n    \"is_correct\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/questions/{{question_id}}/options"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"option_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Option",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"option_text\": \"Four\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/options/{{option_id}}"
+          }
+        },
+        {
+          "name": "Delete Option",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/options/{{option_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Admin - User Management",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"UpdatedName\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/deactivate"
+          }
+        },
+        {
+          "name": "Reset Password (Trigger)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/reset-password"
+          }
+        },
+        {
+          "name": "Manual Enroll",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"learning_path_id\": \"{{lp_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/enroll"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Admin - Dashboard",
+      "item": [
+        {
+          "name": "Admin Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/stats"
+          }
+        },
+        {
+          "name": "Recent Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/recent-transactions"
+          }
+        },
+        {
+          "name": "User Growth",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/user-growth"
+          }
+        },
+        {
+          "name": "Enrollment Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/enrollment-stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Admin - Reports",
+      "item": [
+        {
+          "name": "User Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/user-analytics"
+          }
+        },
+        {
+          "name": "Course Performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/course-performance"
+          }
+        },
+        {
+          "name": "Sales Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/sales-report"
+          }
+        },
+        {
+          "name": "Enrollment Trends",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/enrollment-trends"
+          }
+        },
+        {
+          "name": "Certificate Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/certificate-stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Admin - Batch Operations",
+      "item": [
+        {
+          "name": "Delete Multiple Users",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [{{user_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/users/delete"
+          }
+        },
+        {
+          "name": "Deactivate Multiple Users",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [{{user_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/users/deactivate"
+          }
+        },
+        {
+          "name": "Delete Multiple Courses",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [{{course_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/courses/delete"
+          }
+        },
+        {
+          "name": "Delete Multiple LPs",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [{{lp_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/learning-paths/delete"
+          }
+        },
+        {
+          "name": "Delete Multiple Modules",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [{{module_id}}]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/modules/delete"
+          }
+        },
+        {
+          "name": "Update LP Status",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [{{lp_id}}],\n    \"status\": \"published\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/learning-paths/update-status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Admin - Articles",
+      "item": [
+        {
+          "name": "List Articles (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/admin/articles"
+          }
+        },
+        {
+          "name": "Create Article",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "New Article", "type": "text" },
+                { "key": "content", "value": "Content here", "type": "text" },
+                { "key": "category", "value": "Technology", "type": "text" },
+                { "key": "thumbnail", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/articles/admin/articles"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) pm.collectionVariables.set(\"article_id\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Article",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Updated Article", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/articles/admin/articles/{{article_id}}"
+          }
+        },
+        {
+          "name": "Delete Article",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/admin/articles/{{article_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Admin - Certificates",
+      "item": [
+        {
+          "name": "Update Certificate",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "certificate", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{base_url}}/api/v1/certificates/admin/certificates/{{certificate_id}}"
+          }
+        },
+        {
+          "name": "Delete Certificate",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/certificates/admin/certificates/{{certificate_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "16. Webhooks",
+      "item": [
+        {
+          "name": "Midtrans Notification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"order_id\": \"PASTE_ORDER_ID_HERE\",\n    \"transaction_status\": \"settlement\",\n    \"fraud_status\": \"accept\",\n    \"metadata\": {\n        \"user_id\": \"{{user_id}}\",\n        \"learning_path_id\": \"{{lp_id}}\"\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/webhooks/midtrans"
+          }
+        },
+        {
+          "name": "Supabase User Deleted",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"type\": \"DELETE\",\n    \"record\": { \"id\": \"SUPABASE_USER_ID\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{base_url}}/api/v1/webhooks/supabase/user-deleted"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "auth_token", "value": "", "type": "string" },
+    { "key": "user_token", "value": "", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
+    { "key": "verification_token", "value": "", "type": "string" },
+    { "key": "lp_id", "value": "1", "type": "string" },
+    { "key": "course_id", "value": "1", "type": "string" },
+    { "key": "module_id", "value": "1", "type": "string" },
+    { "key": "quiz_id", "value": "1", "type": "string" },
+    { "key": "attempt_id", "value": "1", "type": "string" },
+    { "key": "question_id", "value": "1", "type": "string" },
+    { "key": "option_id", "value": "1", "type": "string" },
+    { "key": "certificate_id", "value": "1", "type": "string" },
+    { "key": "article_id", "value": "1", "type": "string" },
+    { "key": "payment_id", "value": "1", "type": "string" },
+    { "key": "user_id", "value": "1", "type": "string" }
+  ]
 }

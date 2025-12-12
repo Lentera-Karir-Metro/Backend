@@ -9,6 +9,28 @@ const Module = db.Module;
 const Course = db.Course;
 // Impor sequelize untuk menjalankan transaksi database (diperlukan untuk reordering)
 const { sequelize } = require('../../models'); 
+const { getVideoDurationInSeconds } = require('get-video-duration');
+const ffprobe = require('ffprobe-static');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+/**
+ * Helper untuk mendapatkan durasi video dari buffer
+ */
+const getVideoDuration = async (buffer) => {
+  const tempFilePath = path.join(os.tmpdir(), `temp-${Date.now()}.mp4`);
+  fs.writeFileSync(tempFilePath, buffer);
+  try {
+    const duration = await getVideoDurationInSeconds(tempFilePath, ffprobe.path);
+    fs.unlinkSync(tempFilePath); // Hapus file temp
+    return Math.ceil(duration / 60); // Konversi ke menit (pembulatan ke atas)
+  } catch (error) {
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    console.error('Error getting video duration:', error);
+    return 0;
+  }
+};
 
 /**
  * @function createModule
@@ -23,15 +45,13 @@ const createModule = async (req, res) => {
   const { course_id } = req.params;
   const {
     title,
-    module_type, // 'video', 'ebook', 'quiz'
-    quiz_id,
-    durasi_video_menit,
+    module_type, // 'video', 'ebook' (Quiz dipisah)
     estimasi_waktu_menit,
   } = req.body;
 
   // Validasi input wajib
-  if (!title || !module_type || !estimasi_waktu_menit) {
-    return res.status(400).json({ message: 'Title, Module Type, dan Estimasi Waktu wajib diisi.' });
+  if (!title || !module_type) {
+    return res.status(400).json({ message: 'Title dan Module Type wajib diisi.' });
   }
 
   // Validasi: untuk video dan ebook wajib ada file
@@ -58,12 +78,17 @@ const createModule = async (req, res) => {
 
     const nextOrder = lastModule ? lastModule.sequence_order + 1 : 1;
 
-    // 3. Upload file ke Supabase jika ada
+    // 3. Upload file ke Supabase jika ada & Hitung Durasi
     let videoUrl = null;
     let ebookUrl = null;
+    let detectedDuration = 0;
 
     if (module_type === 'video' && req.file) {
       try {
+        // Hitung durasi otomatis sebelum upload
+        detectedDuration = await getVideoDuration(req.file.buffer);
+        console.log(`[Module] Detected video duration: ${detectedDuration} minutes`);
+        
         videoUrl = await uploadToSupabase(req.file, 'videos', 'modules');
       } catch (uploadErr) {
         return res.status(400).json({ message: 'Gagal upload video.', error: uploadErr.message });
@@ -86,9 +111,9 @@ const createModule = async (req, res) => {
       sequence_order: nextOrder,
       video_url: videoUrl,
       ebook_url: ebookUrl,
-      quiz_id: module_type === 'quiz' ? quiz_id : null,
-      durasi_video_menit: durasi_video_menit || null,
-      estimasi_waktu_menit: parseInt(estimasi_waktu_menit),
+      // quiz_id dihapus
+      durasi_video_menit: detectedDuration > 0 ? detectedDuration : (parseInt(req.body.durasi_video_menit) || 0),
+      estimasi_waktu_menit: parseInt(estimasi_waktu_menit) || detectedDuration || 0,
     });
 
     return res.status(201).json(newModule);

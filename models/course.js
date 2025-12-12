@@ -27,6 +27,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'course_id',
         as: 'modules', // Alias untuk relasi
       });
+      // Sebuah Course memiliki (hasMany) banyak Quiz
+      Course.hasMany(models.Quiz, {
+        foreignKey: 'course_id',
+        as: 'quizzes', // Alias untuk relasi
+      });
     }
   }
 

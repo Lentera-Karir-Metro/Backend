@@ -13,6 +13,14 @@ router.get('/category/:category', articleController.getArticlesByCategory);
 router.get('/:id', articleController.getArticleById);
 
 // Admin routes (protected, admin only)
+// GET - List all articles for admin (with pagination, search, filter)
+router.get(
+  '/admin/articles',
+  protect,
+  isAdmin,
+  articleController.getAllArticlesForAdmin
+);
+
 // POST - Create article with optional thumbnail
 router.post(
   '/admin/articles',

@@ -5,29 +5,13 @@
  */
 const express = require('express');
 const router = express.Router();
+const { register, verifyEmail, login, googleLogin, forgotPassword, refreshToken } = require('../controllers/authController');
 
-// Impor controller yang menangani logika sinkronisasi dan refresh token
-const { syncUser, refreshToken, forgotPassword } = require('../controllers/authController');
-
-/**
- * @method POST
- * @route /sync
- * @description Endpoint krusial untuk sinkronisasi data user dari Supabase ke MySQL setelah login/register.
- */
-router.post('/sync', syncUser);
-
-/**
- * @method POST
- * @route /refresh-token
- * @description Endpoint untuk memperbarui token sesi (opsional, jika tidak ditangani otomatis oleh frontend SDK).
- */
-router.post('/refresh-token', refreshToken);
-
-/**
- * @method POST
- * @route /forgot-password
- * @description Endpoint untuk mengirim email reset password.
- */
+router.post('/register', register);
+router.get('/verify-email', verifyEmail);
+router.post('/login', login);
+router.post('/google', googleLogin);
 router.post('/forgot-password', forgotPassword);
+router.post('/refresh-token', refreshToken);
 
 module.exports = router;

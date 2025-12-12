@@ -24,11 +24,10 @@ module.exports = (sequelize, DataTypes) => {
         as: 'course', // Alias untuk relasi
       });
 
-      // Sebuah Module bisa (secara opsional) terhubung ke (belongsTo) satu Quiz
-      // Ini terjadi jika module_type === 'quiz'
+      // Sebuah Module (jika tipe=quiz) terhubung ke (belongsTo) satu Quiz
       Module.belongsTo(models.Quiz, {
         foreignKey: 'quiz_id',
-        as: 'quiz', // Alias untuk relasi
+        as: 'quiz',
       });
     }
   }
@@ -42,6 +41,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       primaryKey: true,
       unique: true,
+      defaultValue: () => generateCustomId('MD'),
     },
     course_id: {
       type: DataTypes.STRING(16),
@@ -52,6 +52,16 @@ module.exports = (sequelize, DataTypes) => {
       },
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE', // Jika Course dihapus, Module ikut terhapus
+    },
+    quiz_id: {
+      type: DataTypes.STRING(16),
+      allowNull: true,
+      references: {
+        model: 'Quizzes',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
     },
     title: {
       type: DataTypes.STRING,
@@ -74,10 +84,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true, // Diisi jika module_type = 'ebook'. URL dari Supabase Storage.
     },
-    quiz_id: {
-      type: DataTypes.STRING(16),
-      allowNull: true, // Diisi jika module_type = 'quiz'. FK ke tabel Quizzes.
-    },
+    // quiz_id dihapus karena Quiz sekarang terpisah dari Module
     durasi_video_menit: {
       type: DataTypes.INTEGER,
       allowNull: true, // Diisi oleh admin, khusus untuk video.

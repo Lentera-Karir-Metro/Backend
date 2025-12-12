@@ -16,7 +16,8 @@ const PORT = process.env.PORT || 3000; // Menggunakan port dari .env atau defaul
 
 // 3. Pasang Middleware Global
 app.use(cors()); // Memasang CORS
-app.use(express.json()); // Memungkinkan parsing request body dalam format JSON
+app.use(express.json({ limit: '1000mb' })); // Memungkinkan parsing request body dalam format JSON dengan limit 1GB
+app.use(express.urlencoded({ limit: '1000mb', extended: true })); // Support form-urlencoded dengan limit 1GB
 
 // 4. Test Route (Untuk pengecekan status server)
 app.get('/api/v1/test', (req, res) => {
@@ -70,6 +71,15 @@ app.use('/api/v1/admin', quizRoutes); // CRUD Quiz Engine
 const userManagementRoutes = require('./src/routes/userManagementRoutes');
 app.use('/api/v1/admin', userManagementRoutes); // Manajemen User (Deaktivasi, Enroll Manual)
 
+const adminDashboardRoutes = require('./src/routes/adminDashboardRoutes');
+app.use('/api/v1/admin/dashboard', adminDashboardRoutes); // Admin Dashboard Stats
+
+const reportsRoutes = require('./src/routes/reportsRoutes');
+app.use('/api/v1/admin/reports', reportsRoutes); // Reports & Analytics
+
+const batchOperationsRoutes = require('./src/routes/batchOperationsRoutes');
+app.use('/api/v1/admin/batch', batchOperationsRoutes); // Batch Operations
+
 // --- C. Rute Otomatisasi (Webhooks) ---
 const webhookRoutes = require('./src/routes/webhookRoutes');
 app.use('/api/v1', webhookRoutes); // Webhook Midtrans & Supabase (Tidak Terproteksi)
@@ -89,6 +99,9 @@ app.use('/api/v1/dashboard', dashboardRoutes); // Dashboard User (Wajib Login)
 
 const certificateRoutes = require('./src/routes/certificateRoutes');
 app.use('/api/v1/certificates', certificateRoutes); // Certificate User (Wajib Login)
+
+const articleRoutes = require('./src/routes/articleRoutes');
+app.use('/api/v1/articles', articleRoutes); // Articles (Public & Admin)
 
 
 // 6. Jalankan Server & Tes Koneksi Database

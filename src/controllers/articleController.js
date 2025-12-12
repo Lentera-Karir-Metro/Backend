@@ -1,7 +1,70 @@
 // File: src/controllers/articleController.js
 const { Article } = require('../../models');
 const { uploadToSupabase, deleteFromSupabase } = require('../utils/uploadToSupabase');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
+
+/**
+ * @function getAllArticlesForAdmin
+ * @description Mengambil semua articles untuk admin panel (dengan pagination, search, filter)
+ * @route GET /api/v1/admin/articles
+ * @query {number} page - Halaman (default: 1)
+ * @query {number} limit - Jumlah per halaman (default: 10)
+ * @query {string} search - Cari berdasarkan title atau content
+ * @query {string} category - Filter berdasarkan category
+ * @query {string} sort - Sort field (default: createdAt)
+ * @query {string} order - ASC atau DESC (default: DESC)
+ */
+exports.getAllArticlesForAdmin = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', category = '', sort = 'createdAt', order = 'DESC' } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Build where clause
+    const where = {};
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { content: { [Op.iLike]: `%${search}%` } },
+        { author: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+    if (category && category !== 'all') {
+      where.category = category;
+    }
+
+    // Validate sort and order
+    const validSortFields = ['id', 'title', 'author', 'category', 'createdAt', 'updatedAt'];
+    const validOrder = ['ASC', 'DESC'];
+    const sortField = validSortFields.includes(sort) ? sort : 'createdAt';
+    const orderDir = validOrder.includes(order?.toUpperCase()) ? order.toUpperCase() : 'DESC';
+
+    const { count, rows } = await Article.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [[sortField, orderDir]],
+      attributes: ['id', 'title', 'content', 'author', 'category', 'thumbnail_url', 'createdAt', 'updatedAt']
+    });
+
+    res.status(200).json({
+      success: true,
+      data: rows,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error getAllArticlesForAdmin:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil daftar articles',
+      error: error.message
+    });
+  }
+};
 
 // Create article
 exports.createArticle = async (req, res) => {
