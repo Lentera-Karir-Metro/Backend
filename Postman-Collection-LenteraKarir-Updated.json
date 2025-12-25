@@ -1,0 +1,1548 @@
+{
+  "info": {
+    "name": "LenteraKarir API (Lengkap & Terupdate)",
+    "description": "Koleksi API Lengkap untuk Backend LenteraKarir. Mencakup seluruh endpoint Admin, User, Public, dan System. Tidak ada dependensi Google/Supabase.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-Switch Token Logic",
+          "let token = pm.collectionVariables.get('user_token');",
+          "// Jika URL mengandung 'admin', gunakan admin_token",
+          "if (pm.request.url.path.join('/').includes('admin')) {",
+          "    token = pm.collectionVariables.get('admin_token');",
+          "}",
+          "// Fallback ke auth_token umum jika spesifik token kosong",
+          "if (!token) token = pm.collectionVariables.get('auth_token');",
+          "if (token) {",
+          "    pm.request.headers.add({key: 'Authorization', value: 'Bearer ' + token});",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Otentikasi (Auth)",
+      "item": [
+        {
+          "name": "Daftar Akun",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"newuser\",\n    \"email\": \"newuser@example.com\",\n    \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "Masuk (Pengguna)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"auth_token\", jsonData.token);",
+                  "    pm.collectionVariables.set(\"user_token\", jsonData.token);",
+                  "    console.log(\"User Token Set!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Masuk (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"daffaraelanaqiali30@gmail.com\",\n    \"password\": \"yaaadaffa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"admin_token\", jsonData.token);",
+                  "    console.log(\"Admin Token Set!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verifikasi Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-email?token=YOUR_TOKEN_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-email"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "YOUR_TOKEN_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Lupa Kata Sandi",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Atur Ulang Kata Sandi",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"RESET_TOKEN_FROM_EMAIL\",\n    \"newPassword\": \"NewPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/auth/reset-password"
+          }
+        },
+        {
+          "name": "Perbarui Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refreshToken\": \"YOUR_REFRESH_TOKEN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/auth/refresh-token"
+          }
+        },
+        {
+          "name": "Ambil Profil Saya",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Katalog Publik",
+      "item": [
+        {
+          "name": "Ambil Semua Alur Belajar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/catalog/learning-paths"
+          }
+        },
+        {
+          "name": "Ambil Detail Alur Belajar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/catalog/learning-paths/{{lp_id}}"
+          }
+        },
+        {
+          "name": "Ambil Semua Artikel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles"
+          }
+        },
+        {
+          "name": "Ambil Artikel Terbaru",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/latest"
+          }
+        },
+        {
+          "name": "Ambil Kategori Artikel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/categories"
+          }
+        },
+        {
+          "name": "Ambil Artikel berdasarkan Kategori",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/category/Technology"
+          }
+        },
+        {
+          "name": "Ambil Detail Artikel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/articles/{{article_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Pengguna - Dasbor & Pembelajaran",
+      "item": [
+        {
+          "name": "Statistik Dasbor Saya",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/dashboard/stats"
+          }
+        },
+        {
+          "name": "Lanjutkan Belajar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/dashboard/continue-learning"
+          }
+        },
+        {
+          "name": "Kursus Rekomendasi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/dashboard/recommended"
+          }
+        },
+        {
+          "name": "Dasbor Pembelajaran Saya (Terdaftar)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/dashboard"
+          }
+        },
+        {
+          "name": "Ebook Saya",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/ebooks"
+          }
+        },
+        {
+          "name": "Ambil Konten Alur Belajar (Lengkap)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/learning-paths/{{lp_id}}"
+          }
+        },
+        {
+          "name": "Tandai Modul Selesai",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/modules/{{module_id}}/complete"
+          }
+        },
+        {
+          "name": "Mulai/Lanjutkan Kuis",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/quiz/{{quiz_id}}/start"
+          }
+        },
+        {
+          "name": "Simpan Jawaban Kuis",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"question_id\": \"{{question_id}}\",\n    \"selected_option_id\": \"{{option_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/learn/attempts/{{attempt_id}}/answer"
+          }
+        },
+        {
+          "name": "Kirim Kuis",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/attempts/{{attempt_id}}/submit"
+          }
+        },
+        {
+          "name": "Sertifikat Saya",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/certificates"
+          }
+        },
+        {
+          "name": "Ambil Detail Sertifikat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/certificates/{{certificate_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin - Dasbor & Laporan",
+      "item": [
+        {
+          "name": "Statistik Dasbor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/stats"
+          }
+        },
+        {
+          "name": "Transaksi Terbaru",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/recent-transactions"
+          }
+        },
+        {
+          "name": "Pertumbuhan Pengguna",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/user-growth"
+          }
+        },
+        {
+          "name": "Statistik Pendaftaran",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/enrollment-stats"
+          }
+        },
+        {
+          "name": "Daftar User Terbaru",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/recent-users"
+          }
+        },
+        {
+          "name": "Daftar Learning Path Terbaru",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/dashboard/recent-learning-paths"
+          }
+        },
+        {
+          "name": "Laporan: Analitik Pengguna",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/user-analytics"
+          }
+        },
+        {
+          "name": "Laporan: Performa Kursus",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/course-performance"
+          }
+        },
+        {
+          "name": "Laporan: Performa Kelas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/class-performance"
+          }
+        },
+        {
+          "name": "Laporan: Performa Siswa",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/student-performance"
+          }
+        },
+        {
+          "name": "Laporan: Penjualan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/sales-report"
+          }
+        },
+        {
+          "name": "Laporan: Tren Pendaftaran",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/enrollment-trends"
+          }
+        },
+        {
+          "name": "Laporan: Statistik Sertifikat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/reports/certificate-stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Admin - Manajemen Pengguna",
+      "item": [
+        {
+          "name": "Ambil Semua Pengguna",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users"
+          }
+        },
+        {
+          "name": "Buat Pengguna",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"CreatedByAdmin\",\n    \"email\": \"admincreated@example.com\",\n    \"password\": \"Password123!\",\n    \"role\": \"user\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/admin/users"
+          }
+        },
+        {
+          "name": "Perbarui Pengguna",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"UpdatedName\",\n    \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Nonaktifkan Pengguna",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/deactivate"
+          }
+        },
+        {
+          "name": "Picu Atur Ulang Kata Sandi",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/reset-password"
+          }
+        },
+        {
+          "name": "Daftarkan Pengguna Manual",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"learning_path_id\": \"{{lp_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/enroll"
+          }
+        },
+        {
+          "name": "Hapus Pengguna",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Batch: Hapus Pengguna",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\"{{user_id}}\", \"ANOTHER_ID\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/users/delete"
+          }
+        },
+        {
+          "name": "Batch: Nonaktifkan Pengguna",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\"{{user_id}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/admin/batch/users/deactivate"
+          }
+        },
+        {
+          "name": "Ambil Enrollment Pengguna (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/users/{{user_id}}/enrollments"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Admin - Manajemen Konten",
+      "item": [
+        {
+          "name": "Alur Belajar",
+          "item": [
+            {
+              "name": "Daftar Semua",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/learning-paths"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "if (jsonData.data && jsonData.data.rows && jsonData.data.rows.length > 0) {",
+                      "    pm.collectionVariables.set(\"lp_id\", jsonData.data.rows[0].id);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Buat Alur Belajar (Wajib Pilih Course)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"New Learning Path\",\n    \"description\": \"Description\",\n    \"course_ids\": [\n        \"CR-123456\",\n        \"CR-654321\"\n    ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/learning-paths"
+              },
+              "description": "Membuat learning path baru dan wajib memilih minimal 1 course yang sudah ada. Field course_ids harus array minimal 1."
+            },
+            {
+              "name": "Ambil Detail",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}"
+              }
+            },
+            {
+              "name": "Perbarui",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Updated Title\",\n    \"description\": \"Updated Description\",\n    \"courses\": [\"{{course_id}}\", \"ANOTHER_ID\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}"
+              }
+            },
+            {
+              "name": "Hapus",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}"
+              }
+            },
+            {
+              "name": "Batch: Hapus",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"ids\": [\"{{lp_id}}\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/batch/learning-paths/delete"
+              }
+            },
+            {
+              "name": "Batch: Perbarui Status",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"ids\": [\"{{lp_id}}\"],\n    \"status\": \"published\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/batch/learning-paths/update-status"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kursus",
+          "item": [
+            {
+              "name": "Daftar Semua",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/courses"
+              }
+            },
+            {
+              "name": "Buat Kursus",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "New Course",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Desc",
+                      "type": "text"
+                    },
+                    {
+                      "key": "price",
+                      "value": "0",
+                      "type": "text"
+                    },
+                    {
+                      "key": "discount_amount",
+                      "value": "0",
+                      "type": "text"
+                    },
+                    {
+                      "key": "category",
+                      "value": "All",
+                      "type": "text"
+                    },
+                    {
+                      "key": "mentor_name",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "mentor_title",
+                      "value": "",
+                      "type": "text"
+                    },
+                    {
+                      "key": "status",
+                      "value": "published",
+                      "type": "text"
+                    },
+                    {
+                      "key": "thumbnail",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "mentor_photo",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/courses"
+              },
+              "description": "Membuat course baru."
+            },
+            {
+              "name": "Perbarui Kursus",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "Updated Course",
+                      "type": "text"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Updated Desc",
+                      "type": "text"
+                    },
+                    {
+                      "key": "thumbnail",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "mentor_photo",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}"
+              }
+            },
+            {
+              "name": "Urutkan Ulang Kursus",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"course_ids\": [\"{{course_id}}\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/learning-paths/{{lp_id}}/reorder-courses"
+              }
+            },
+            {
+              "name": "Hapus Kursus",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}"
+              }
+            },
+            {
+              "name": "Batch: Hapus",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"ids\": [\"{{course_id}}\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/batch/courses/delete"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modul",
+          "item": [
+            {
+              "name": "Buat Modul (Video & Bulk)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "New Video Module",
+                      "type": "text"
+                    },
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "Upload one or more video files (.mp4, .webm). Type is inferred from file extension."
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/modules"
+              },
+              "description": "Upload video module. Supports bulk upload."
+            },
+            {
+              "name": "Buat Modul (Ebook)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "New Ebook Module",
+                      "type": "text"
+                    },
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "Upload PDF file. Type is inferred from file extension."
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/modules"
+              },
+              "description": "Upload ebook module (PDF)."
+            },
+            {
+              "name": "Buat Modul (Quiz)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "Quiz Module",
+                      "type": "text"
+                    },
+                    {
+                      "key": "quiz_id",
+                      "value": "YOUR_QUIZ_ID",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/modules"
+              },
+              "description": "Create a module linked to a Quiz."
+            },
+            {
+              "name": "Perbarui Modul",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "Updated Module",
+                      "type": "text"
+                    },
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "Optional: Upload new video or ebook to replace current content."
+                    },
+                    {
+                      "key": "quiz_id",
+                      "value": "",
+                      "type": "text",
+                      "description": "Optional: Link to a different quiz."
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/modules/{{module_id}}"
+              }
+            },
+            {
+              "name": "Urutkan Ulang Modul",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"orderedIds\": [\"{{module_id}}\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/reorder-modules"
+              }
+            },
+            {
+              "name": "Hapus Modul",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/modules/{{module_id}}"
+              }
+            },
+            {
+              "name": "Batch: Hapus",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"ids\": [\"{{module_id}}\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/batch/modules/delete"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kuis",
+          "item": [
+            {
+              "name": "Daftar Semua Kuis",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/quizzes"
+              }
+            },
+            {
+              "name": "Buat Kuis (Dalam Kursus)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"New Quiz\",\n    \"passing_score\": 70\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/courses/{{course_id}}/quizzes"
+              }
+            },
+            {
+              "name": "Buat Kuis (Mandiri)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Standalone Quiz\",\n    \"passing_score\": 70\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/quizzes"
+              }
+            },
+            {
+              "name": "Ambil Detail Kuis",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}"
+              }
+            },
+            {
+              "name": "Perbarui Kuis",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\": \"Updated Quiz Title\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}"
+              }
+            },
+            {
+              "name": "Hapus Kuis",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}"
+              }
+            },
+            {
+              "name": "Tambah Pertanyaan",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"question_text\": \"Question?\",\n    \"type\": \"multiple_choice\",\n    \"points\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/quizzes/{{quiz_id}}/questions"
+              }
+            },
+            {
+              "name": "Perbarui Pertanyaan",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"question_text\": \"Updated Question?\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/questions/{{question_id}}"
+              }
+            },
+            {
+              "name": "Hapus Pertanyaan",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/questions/{{question_id}}"
+              }
+            },
+            {
+              "name": "Tambah Opsi",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"option_text\": \"Answer A\",\n    \"is_correct\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/questions/{{question_id}}/options"
+              }
+            },
+            {
+              "name": "Perbarui Opsi",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"option_text\": \"Updated Answer\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/admin/options/{{option_id}}"
+              }
+            },
+            {
+              "name": "Hapus Opsi",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/options/{{option_id}}"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Artikel",
+          "item": [
+            {
+              "name": "Daftar Semua (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/articles"
+              }
+            },
+            {
+              "name": "Buat Artikel",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "New Article",
+                      "type": "text"
+                    },
+                    {
+                      "key": "content",
+                      "value": "Content",
+                      "type": "text"
+                    },
+                    {
+                      "key": "category",
+                      "value": "Tech",
+                      "type": "text"
+                    },
+                    {
+                      "key": "thumbnail",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/articles"
+              }
+            },
+            {
+              "name": "Perbarui Artikel",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "title",
+                      "value": "Updated Title",
+                      "type": "text"
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/admin/articles/{{article_id}}"
+              }
+            },
+            {
+              "name": "Hapus Artikel",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/admin/articles/{{article_id}}"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sertifikat",
+          "item": [
+            {
+              "name": "Ambil Semua Sertifikat (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/certificates/admin/all"
+              }
+            },
+            {
+              "name": "Daftar Kandidat Sertifikat (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/certificates/admin/candidates",
+                "description": "Get users who completed course but have no certificate yet."
+              }
+            },
+            {
+              "name": "Daftar Template",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/certificates/admin/templates"
+              }
+            },
+            {
+              "name": "Buat Template",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "name",
+                      "value": "New Template",
+                      "type": "text"
+                    },
+                    {
+                      "key": "template",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/certificates/admin/templates"
+              }
+            },
+            {
+              "name": "Generate Satu",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"course_id\": \"{{course_id}}\",\n  \"user_id\": \"{{user_id}}\",\n  \"template_id\": \"{{template_id}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/certificates/admin/generate"
+              }
+            },
+            {
+              "name": "Preview Sertifikat",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"user_id\": \"{{user_id}}\",\n    \"course_id\": \"{{course_id}}\",\n    \"template_id\": \"{{template_id}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{base_url}}/api/v1/certificates/admin/preview"
+              }
+            },
+            {
+              "name": "Cek Status Sertifikat (User)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{base_url}}/api/v1/certificates/status/{{course_id}}"
+              }
+            },
+            {
+              "name": "Perbarui Sertifikat",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "certificate",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": "{{base_url}}/api/v1/certificates/admin/{{certificate_id}}"
+              }
+            },
+            {
+              "name": "Hapus Sertifikat",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{base_url}}/api/v1/certificates/admin/{{certificate_id}}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Pembayaran",
+      "item": [
+        {
+          "name": "Checkout (Midtrans)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"learning_path_id\": \"{{lp_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/payments/checkout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.order_id) {",
+                  "    pm.collectionVariables.set(\"payment_id\", jsonData.order_id);",
+                  "    console.log(\"Payment ID updated: \" + jsonData.order_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cek Status Pembayaran",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/status/{{payment_id}}"
+          }
+        },
+        {
+          "name": "Sinkronisasi Pembayaran Tertunda",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/payments/sync"
+          }
+        },
+        {
+          "name": "Ambil Semua Transaksi (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/admin/transactions"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Webhooks",
+      "item": [
+        {
+          "name": "Notifikasi Midtrans",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"transaction_status\": \"settlement\",\n    \"order_id\": \"{{payment_id}}\",\n    \"fraud_status\": \"accept\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/v1/webhooks/midtrans"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lp_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "course_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "module_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quiz_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "question_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "option_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "article_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "certificate_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "attempt_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
