@@ -14,6 +14,8 @@ const {
   getLearningPathContent,
   markModuleAsComplete,
   getMyEbooks,
+  getMyCourses,
+  getCourseContent,
 } = require('../controllers/learningController');
 
 // Impor controller untuk Logika Kuis (Start, Save, Submit)
@@ -44,6 +46,13 @@ router.get('/learn/dashboard', getMyDashboard);
 
 /**
  * @method GET
+ * @route /learn/my-courses
+ * @description Mengambil daftar Courses yang telah di-enroll user dengan progress.
+ */
+router.get('/learn/my-courses', getMyCourses);
+
+/**
+ * @method GET
  * @route /learn/ebooks
  * @description Mengambil semua ebook yang dimiliki user dari course yang telah dibeli.
  */
@@ -55,6 +64,13 @@ router.get('/learn/ebooks', getMyEbooks);
  * @description Mengambil konten Learning Path secara lengkap, disertai status progres dan penguncian.
  */
 router.get('/learn/learning-paths/:lp_id', getLearningPathContent);
+
+/**
+ * @method GET
+ * @route /learn/courses/:course_id
+ * @description Mengambil konten Course secara lengkap untuk halaman learn (course-based).
+ */
+router.get('/learn/courses/:course_id', getCourseContent);
 
 /**
  * @method POST

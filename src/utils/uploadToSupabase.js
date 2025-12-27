@@ -20,6 +20,11 @@ const uploadToSupabase = async (file, bucketName, folderPath = '') => {
   }
 
   try {
+    // Check if Supabase is configured
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+      throw new Error('Supabase tidak terkonfigurasi. Periksa SUPABASE_URL dan SUPABASE_KEY di file .env');
+    }
+
     // Baca file dari buffer/path
     const fileBuffer = file.buffer;
     

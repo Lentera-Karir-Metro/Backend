@@ -318,11 +318,30 @@ const reorderModules = async (req, res) => {
   }
 };
 
-module.exports = {
-  createModule,
-  updateModule,
-  deleteModule,
-  reorderModules,
+/**
+ * @function getModulesByCourse
+ * @description Mengambil semua modules dalam satu course
+ * @route GET /api/v1/admin/courses/:course_id/modules
+ */
+const getModulesByCourse = async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const modules = await Module.findAll({
+      where: { course_id },
+      order: [['sequence_order', 'ASC']],
+      include: [
+        {
+          model: db.Quiz,
+          as: 'quiz',
+          attributes: ['id', 'title', 'description']
+        }
+      ]
+    });
+
+    return res.status(200).json(modules);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error.', error: err.message });
+  }
 };
 
 /**
@@ -353,5 +372,11 @@ const getModuleById = async (req, res) => {
   }
 };
 
-// Export tambahan
-module.exports.getModuleById = getModuleById;
+module.exports = {
+  createModule,
+  updateModule,
+  deleteModule,
+  reorderModules,
+  getModuleById,
+  getModulesByCourse
+};

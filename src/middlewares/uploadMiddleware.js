@@ -75,7 +75,7 @@ const validateFile = (req, res, next) => {
   const configs = {
     image: {
       types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-      maxSize: 5 * 1024 * 1024,
+      maxSize: 50 * 1024 * 1024, // 50MB
     },
     video: {
       types: ['video/mp4', 'video/webm', 'video/quicktime'],

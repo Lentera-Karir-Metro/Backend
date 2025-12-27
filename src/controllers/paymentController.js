@@ -39,17 +39,19 @@ const getAllTransactions = async (req, res) => {
     const { count, rows } = await UserEnrollment.findAndCountAll({
       where: whereClause,
       include: [
-          {
-            model: User,
-            as: 'User',
-            attributes: ['username', 'email']
-          },
-          {
-            model: Course,
-            as: 'Course',
-            attributes: ['title']
-          }
-        ],
+        {
+          model: User,
+          as: 'User',
+          attributes: ['username', 'email'],
+          required: false // Allow null users
+        },
+        {
+          model: Course,
+          as: 'Course',
+          attributes: ['title'],
+          required: false // Allow null courses
+        }
+      ],
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -60,7 +62,7 @@ const getAllTransactions = async (req, res) => {
       id: enrollment.midtrans_transaction_id || enrollment.id, // Use Midtrans ID if available, else Enrollment ID
       user_name: enrollment.User ? enrollment.User.username : 'Unknown User', // Use username instead of name
       class_name: enrollment.Course ? enrollment.Course.title : 'Unknown Class',
-      amount: parseFloat(enrollment.amount_paid),
+      amount: enrollment.amount_paid ? parseFloat(enrollment.amount_paid) : 0,
       payment_method: enrollment.payment_method || '-',
       status: enrollment.status,
       date: enrollment.createdAt
@@ -229,6 +231,15 @@ const createCheckoutSession = async (req, res) => {
 
   } catch (err) {
     console.error('Checkout error:', err.message);
+    console.error('Checkout error full stack:', err);
+
+    // Handle validation errors with more detail
+    if (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError') {
+      const details = err.errors ? err.errors.map(e => e.message).join(', ') : err.message;
+      console.error('Validation details:', details);
+      return res.status(400).json({ message: 'Validation error.', error: details });
+    }
+
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };

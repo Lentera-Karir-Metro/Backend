@@ -14,6 +14,7 @@ const {
   deleteCourse,
   reorderCourses,
   getAllCourses,
+  getCourseById,
   assignCourseToLearningPath
 } = require('../controllers/courseController');
 
@@ -23,7 +24,8 @@ const {
   updateModule,
   deleteModule,
   reorderModules,
-  getModuleById
+  getModuleById,
+  getModulesByCourse
 } = require('../controllers/moduleController');
 
 // Impor middleware otorisasi
@@ -46,6 +48,13 @@ router.use(isAdmin);
  * @description Mengambil semua course (untuk dropdown/list).
  */
 router.get('/courses', getAllCourses);
+
+/**
+ * @method GET
+ * @route /courses/:id
+ * @description Mengambil detail satu course
+ */
+router.get('/courses/:id', getCourseById);
 
 /**
  * @method POST
@@ -83,6 +92,13 @@ router.put('/courses/:id', uploadSingle.any(), validateFile, updateCourse);
 router.delete('/courses/:id', deleteCourse);
 
 // --- Rute untuk Module ---
+
+/**
+ * @method GET
+ * @route /courses/:course_id/modules
+ * @description Mengambil semua modules dalam satu course
+ */
+router.get('/courses/:course_id/modules', getModulesByCourse);
 
 /**
  * @method POST
@@ -131,33 +147,11 @@ router.put(
  */
 router.delete('/modules/:id', deleteModule);
 
-module.exports = router;
-
-/**
- * @method POST
- * @route /courses/:course_id/reorder-modules
- * @description Memperbarui urutan (sequence_order) Module (fitur drag-and-drop Admin).
- */
-router.post('/courses/:course_id/reorder-modules', reorderModules);
-
-/**
- * @method PUT
- * @route /modules/:id
- * @description Memperbarui detail Module.
- * Upload file (video/ebook) dengan field "file"
- */
-router.put(
-  '/modules/:id',
-  uploadSingle.single('file'),
-  validateFile,
-  updateModule
-);
-
 /**
  * @method DELETE
- * @route /modules/:id
- * @description Menghapus Module.
+ * @route /courses/:course_id/modules/:id
+ * @description Menghapus Module (alternative route).
  */
-router.delete('/modules/:id', deleteModule);
+router.delete('/courses/:course_id/modules/:id', deleteModule);
 
 module.exports = router;

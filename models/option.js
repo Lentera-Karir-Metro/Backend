@@ -1,6 +1,5 @@
 'use strict';
 const { Model } = require('sequelize');
-const { generateCustomId } = require('../src/utils/idGenerator');
 
 module.exports = (sequelize, DataTypes) => {
   class Option extends Model {
@@ -14,13 +13,13 @@ module.exports = (sequelize, DataTypes) => {
 
   Option.init({
     id: {
-      type: DataTypes.STRING(16),
+      type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true,
-      unique: true,
+      autoIncrement: true,
     },
     question_id: {
-      type: DataTypes.STRING(16),
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'Questions',
@@ -41,14 +40,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Option',
-    timestamps: true,
-    hooks: {
-      beforeCreate: (opt, options) => {
-        if (!opt.id) {
-          opt.id = generateCustomId('OP');
-        }
-      }
-    }
+    timestamps: true
   });
 
   return Option;

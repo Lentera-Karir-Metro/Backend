@@ -29,7 +29,7 @@ const getMyDashboard = async (req, res) => {
 
     // Step 1: Query enrollments dengan raw query untuk debugging
     const enrollments = await db.sequelize.query(
-      `SELECT id, learning_path_id, course_id, enrolled_at
+      `SELECT id, course_id, enrolled_at
        FROM UserEnrollments
        WHERE user_id = :userId AND status = 'success'
        ORDER BY enrolled_at DESC`,
@@ -47,26 +47,20 @@ const getMyDashboard = async (req, res) => {
       return res.status(200).json([]);
     }
 
-    // Step 2: Get learning path IDs
-    const learningPathIds = enrollments.map(en => en.learning_path_id);
-    console.log('Learning Path IDs:', learningPathIds);
-
-    // Step 3: Resolve LearningPath IDs from enrollments and enrolled courses
-    // Collect direct LP ids from enrollments
-    const directLpIds = enrollments.map(e => e.learning_path_id).filter(Boolean);
-    // Collect course ids from enrollments
+    // Step 2: Get learning path IDs from enrolled courses
     const enrolledCourseIds = enrollments.map(e => e.course_id).filter(Boolean);
+    console.log('Enrolled Course IDs:', enrolledCourseIds);
 
-    // If there are enrolled courses, find LPs that include those courses
-    let lpIdsFromCourses = [];
+    // Find LPs that include those courses
+    let learningPathIds = [];
     if (enrolledCourseIds.length) {
       const mappings = await db.LearningPathCourse.findAll({ where: { course_id: enrolledCourseIds }, attributes: ['learning_path_id'] });
-      lpIdsFromCourses = mappings.map(m => m.learning_path_id);
+      learningPathIds = [...new Set(mappings.map(m => m.learning_path_id))];
     }
 
-    const combinedLpIds = Array.from(new Set([...directLpIds, ...lpIdsFromCourses, ...learningPathIds]));
+    const combinedLpIds = learningPathIds;
 
-    const learningPaths = await LearningPath.findAll({ where: { id: combinedLpIds }, attributes: ['id','title','description','createdAt'] });
+    const learningPaths = await LearningPath.findAll({ where: { id: combinedLpIds }, attributes: ['id', 'title', 'description', 'createdAt'] });
 
     console.log('Learning Paths found:', learningPaths.length);
     console.log('Learning Paths:', JSON.stringify(learningPaths, null, 2));
@@ -147,16 +141,14 @@ const getLearningPathContent = async (req, res) => {
     const lpMappings = await db.LearningPathCourse.findAll({ where: { learning_path_id: lp_id }, attributes: ['course_id'] });
     const lpCourseIds = lpMappings.map(m => m.course_id);
 
-    const enrollment = await UserEnrollment.findOne({
+    // Check if user has enrolled in any course from this learning path
+    const enrollment = lpCourseIds.length ? await UserEnrollment.findOne({
       where: {
         user_id: userId,
         status: 'success',
-        [db.Sequelize.Op.or]: [
-          { learning_path_id: lp_id },
-          lpCourseIds.length ? { course_id: lpCourseIds } : null
-        ].filter(Boolean)
+        course_id: lpCourseIds
       }
-    });
+    }) : null;
     if (!enrollment) {
       return res.status(403).json({ message: 'Akses ditolak. Anda belum terdaftar di kelas ini.' });
     }
@@ -356,9 +348,9 @@ const getMyEbooks = async (req, res) => {
     console.log('=== GET MY EBOOKS START ===');
     console.log('User ID:', userId);
 
-    // Step 1: Query enrollments dengan raw query (ambil juga course_id)
+    // Step 1: Query enrollments (only course_id, no learning_path_id)
     const enrollments = await db.sequelize.query(
-      `SELECT learning_path_id, course_id
+      `SELECT course_id
        FROM UserEnrollments
        WHERE user_id = :userId AND status = 'success'`,
       {
@@ -374,26 +366,32 @@ const getMyEbooks = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    // Resolve LP ids from enrollments and course mappings
-    const directLpIds = enrollments.map(e => e.learning_path_id).filter(Boolean);
+    // Resolve LP ids from enrolled courses
     const enrolledCourseIds = enrollments.map(e => e.course_id).filter(Boolean);
-    let lpIdsFromCourses = [];
+    let learningPathIds = [];
     if (enrolledCourseIds.length) {
       const mappings = await db.LearningPathCourse.findAll({ where: { course_id: enrolledCourseIds }, attributes: ['learning_path_id'] });
-      lpIdsFromCourses = mappings.map(m => m.learning_path_id);
+      learningPathIds = [...new Set(mappings.map(m => m.learning_path_id))];
     }
-    const learningPathIds = Array.from(new Set([...directLpIds, ...lpIdsFromCourses]));
     console.log('Learning Path IDs:', learningPathIds);
+
+    // If no learning paths found, return empty
+    if (learningPathIds.length === 0) {
+      console.log('No learning paths found, returning empty array');
+      return res.status(200).json({ success: true, data: [] });
+    }
 
     // Step 2: Query ebooks yang sudah di-download (exist in UserModuleProgress)
     // Hanya ebook yang user sudah klik download/complete yang muncul
     const ebooks = await db.sequelize.query(
-      `SELECT 
+      `SELECT DISTINCT
         m.id, 
         m.title, 
         m.ebook_url,
+        c.id as course_id,
         c.title as course_title,
-        c.thumbnail_url as course_thumbnail
+        c.thumbnail_url as course_thumbnail,
+        m.sequence_order
        FROM Modules m
        JOIN Courses c ON m.course_id = c.id
        JOIN LearningPathCourses lpc ON lpc.course_id = c.id
@@ -424,10 +422,209 @@ const getMyEbooks = async (req, res) => {
   }
 };
 
+/**
+ * @function getMyCourses
+ * @description Mengambil daftar semua Courses yang telah di-enroll user dengan progress
+ * @route GET /api/v1/learn/my-courses
+ */
+const getMyCourses = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    console.log('=== GET MY COURSES START ===');
+    console.log('User ID:', userId);
+
+    // Get all enrollments with Course data
+    const enrollments = await UserEnrollment.findAll({
+      where: { user_id: userId, status: 'success' },
+      include: {
+        model: Course,
+        as: 'Course',
+        attributes: ['id', 'title', 'description', 'thumbnail_url', 'price', 'mentor_name']
+      },
+      order: [['enrolled_at', 'DESC']]
+    });
+
+    console.log('Enrollments found:', enrollments.length);
+
+    if (enrollments.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    // Calculate progress for each course
+    const coursesWithProgress = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const course = enrollment.Course;
+        if (!course) return null;
+
+        // Count total modules in course
+        const totalModules = await Module.count({ where: { course_id: course.id } });
+
+        // Count completed modules by user
+        const completedModules = await UserModuleProgress.count({
+          where: { user_id: userId },
+          include: {
+            model: Module,
+            as: 'module',
+            required: true,
+            where: { course_id: course.id }
+          }
+        });
+
+        const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+
+        return {
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          thumbnail_url: course.thumbnail_url,
+          price: course.price || 0,
+          rating: 4.5, // Default rating
+          review_count: 0,
+          category: 'Kelas',
+          level: 'Beginner',
+          progress_percent: progressPercent,
+          total_modules: totalModules,
+          completed_modules: completedModules
+        };
+      })
+    );
+
+    // Filter out null values
+    const result = coursesWithProgress.filter(Boolean);
+    console.log('Courses with progress:', result.length);
+    console.log('=== GET MY COURSES SUCCESS ===');
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('=== GET MY COURSES ERROR ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error.',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * @function getCourseContent
+ * @description Mengambil konten Course lengkap untuk halaman learn (course-based).
+ * @route GET /api/v1/learn/courses/:course_id
+ */
+const getCourseContent = async (req, res) => {
+  const userId = req.user.id;
+  const { course_id } = req.params;
+
+  try {
+    // 1. Validasi: User harus sudah beli course ini
+    const enrollment = await UserEnrollment.findOne({
+      where: {
+        user_id: userId,
+        course_id: course_id,
+        status: 'success'
+      }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'Akses ditolak. Anda belum terdaftar di kelas ini.' });
+    }
+
+    // 2. Ambil progress user
+    const completedProgress = await UserModuleProgress.findAll({
+      where: { user_id: userId },
+      attributes: ['module_id']
+    });
+    const completedModuleIds = new Set(completedProgress.map(p => p.module_id));
+
+    // 3. Ambil Data Course dari DB
+    const course = await Course.findByPk(course_id, {
+      attributes: ['id', 'title', 'description', 'thumbnail_url', 'mentor_name', 'mentor_title', 'mentor_photo_profile'],
+      include: {
+        model: Module,
+        as: 'modules',
+        attributes: ['id', 'title', 'sequence_order', 'video_url', 'ebook_url', 'quiz_id'],
+        order: [['sequence_order', 'ASC']]
+      }
+    });
+
+    if (!course) return res.status(404).json({ message: 'Course tidak ditemukan.' });
+
+    // 4. FORMAT DATA JSON untuk kompatibilitas dengan frontend LearningPathData
+    const courseData = course.toJSON();
+
+    // Create mentor object
+    const mentor = {
+      name: courseData.mentor_name || 'Tim Lentera Karir',
+      job_title: courseData.mentor_title || 'Expert Instructor',
+      avatar_url: courseData.mentor_photo_profile || `https://ui-avatars.com/api/?name=${encodeURIComponent(courseData.mentor_name || 'Mentor')}&background=random`
+    };
+
+    // Transform modules
+    const transformedModules = (courseData.modules || []).map(module => {
+      // Derive type from available fields
+      let type = 'quiz';
+      if (module.video_url) {
+        type = 'video';
+      } else if (module.ebook_url) {
+        type = 'ebook';
+      } else if (module.quiz_id) {
+        type = 'quiz';
+      }
+
+      return {
+        module_id: module.id,
+        title: module.title,
+        sequence_order: module.sequence_order,
+        type: type,
+        video_url: module.video_url,
+        ebook_url: module.ebook_url,
+        quiz_id: module.quiz_id,
+        duration: 0,
+        is_completed: completedModuleIds.has(module.id),
+        is_locked: false
+      };
+    });
+
+    // Sort modules by sequence_order
+    transformedModules.sort((a, b) => a.sequence_order - b.sequence_order);
+
+    // Calculate completed count
+    const completedCount = transformedModules.filter(m => m.is_completed).length;
+    const isCompleted = transformedModules.length > 0 && completedCount === transformedModules.length;
+
+    // Format response to match LearningPathData structure expected by frontend
+    const response = {
+      id: courseData.id,
+      title: courseData.title,
+      description: courseData.description,
+      thumbnail_url: courseData.thumbnail_url,
+      mentor: mentor,
+      courses: [{
+        course_id: courseData.id,
+        title: courseData.title,
+        description: courseData.description,
+        sequence_order: 1,
+        is_locked: false,
+        is_completed: isCompleted,
+        modules: transformedModules
+      }]
+    };
+
+    return res.status(200).json(response);
+
+  } catch (err) {
+    console.error('Error getCourseContent:', err.message);
+    return res.status(500).json({ message: 'Server error.', error: err.message });
+  }
+};
+
 module.exports = {
   getMyDashboard,
   getLearningPathContent,
   markModuleAsComplete,
   getMyEbooks,
+  getMyCourses,
+  getCourseContent,
 };
 

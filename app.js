@@ -21,8 +21,8 @@ app.use(express.urlencoded({ limit: '1000mb', extended: true })); // Support for
 
 // 4. Test Route (Untuk pengecekan status server)
 app.get('/api/v1/test', (req, res) => {
-  res.status(200).json({ 
-    message: 'API Backend Lentera Karir Berhasil!' 
+  res.status(200).json({
+    message: 'API Backend Lentera Karir Berhasil!'
   });
 });
 
@@ -32,12 +32,12 @@ app.get('/api/v1/debug/config', (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ message: 'Forbidden' });
   }
-  
+
   const midtransServerKey = process.env.MIDTRANS_SERVER_KEY ? '✓ Set' : '✗ Not Set';
   const midtransClientKey = process.env.MIDTRANS_CLIENT_KEY ? '✓ Set' : '✗ Not Set';
   const midtransIsProduction = process.env.MIDTRANS_IS_PRODUCTION || 'false';
   const dbName = process.env.DB_NAME || 'unknown';
-  
+
   return res.status(200).json({
     message: 'Debug Info',
     midtrans: {
@@ -64,7 +64,7 @@ app.use('/api/v1/admin/learning-paths', learningPathRoutes); // CRUD LP
 
 const courseModuleRoutes = require('./src/routes/courseModuleRoutes');
 app.use('/api/v1/admin', courseModuleRoutes); // CRUD Course/Module & Reordering
-    
+
 const quizRoutes = require('./src/routes/quizRoutes');
 app.use('/api/v1/admin', quizRoutes); // CRUD Quiz Engine
 
@@ -79,6 +79,9 @@ app.use('/api/v1/admin/reports', reportsRoutes); // Reports & Analytics
 
 const batchOperationsRoutes = require('./src/routes/batchOperationsRoutes');
 app.use('/api/v1/admin/batch', batchOperationsRoutes); // Batch Operations
+
+const mentorRoutes = require('./src/routes/mentorRoutes');
+app.use('/api/v1/admin', mentorRoutes); // Mentor Management
 
 // --- C. Rute Otomatisasi (Webhooks) ---
 const webhookRoutes = require('./src/routes/webhookRoutes');
@@ -100,8 +103,6 @@ app.use('/api/v1/dashboard', dashboardRoutes); // Dashboard User (Wajib Login)
 const certificateRoutes = require('./src/routes/certificateRoutes');
 app.use('/api/v1/certificates', certificateRoutes); // Certificate User (Wajib Login)
 
-const articleRoutes = require('./src/routes/articleRoutes');
-app.use('/api/v1/articles', articleRoutes); // Articles (Public & Admin)
 
 
 // 6. Jalankan Server & Tes Koneksi Database
@@ -111,10 +112,10 @@ app.use('/api/v1/articles', articleRoutes); // Articles (Public & Admin)
  */
 app.listen(PORT, async () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
-  
+
   try {
     // Memastikan koneksi database valid sebelum menerima request
-    await db.sequelize.authenticate(); 
+    await db.sequelize.authenticate();
     console.log('Koneksi ke database MySQL (database_lentera_karir) BERHASIL.');
   } catch (error) {
     console.error('Koneksi ke database GAGAL:', error);

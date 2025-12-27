@@ -60,7 +60,7 @@ const getPublicLearningPathDetail = async (req, res) => {
         },
       },
       order: [
-        [{ model: Course, as: 'courses' }, 'LearningPathCourse', 'sequence_order', 'ASC'],
+        [{ model: Course, as: 'courses' }, db.LearningPathCourse, 'sequence_order', 'ASC'],
         [{ model: Course, as: 'courses' }, { model: Module, as: 'modules' }, 'sequence_order', 'ASC']
       ]
     });
@@ -74,4 +74,90 @@ const getPublicLearningPathDetail = async (req, res) => {
   }
 };
 
-module.exports = { getPublicLearningPaths, getPublicLearningPathDetail };
+// GET /api/v1/catalog/courses
+// Mengembalikan daftar semua Courses untuk katalog publik
+const getPublicCourses = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, category } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Build where clause - filter by published status
+    const whereClause = { status: 'published' };
+    if (category && category !== 'All') {
+      whereClause.category = category;
+    }
+
+    const { count, rows: courses } = await Course.findAndCountAll({
+      where: whereClause,
+      attributes: [
+        'id', 'title', 'description', 'price', 'thumbnail_url',
+        'discount_amount', 'category', 'mentor_name', 'mentor_title',
+        'mentor_photo_profile', 'status', 'createdAt'
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+    });
+
+    // Add default rating/review for each course
+    const result = courses.map(course => ({
+      ...course.toJSON(),
+      rating: 4.5, // Default rating
+      review_count: Math.floor(Math.random() * 100) + 10, // Random review count for demo
+      level: 'Beginner'
+    }));
+
+    return res.status(200).json({
+      data: result,
+      pagination: {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total: count
+      }
+    });
+  } catch (err) {
+    console.error('Error getPublicCourses:', err);
+    return res.status(500).json({ message: 'Server error.', error: err.message });
+  }
+};
+
+// GET /api/v1/catalog/courses/:id
+// Mengembalikan detail satu Course
+const getPublicCourseDetail = async (req, res) => {
+  try {
+    const course = await Course.findByPk(req.params.id, {
+      attributes: [
+        'id', 'title', 'description', 'price', 'thumbnail_url',
+        'discount_amount', 'category', 'mentor_name', 'mentor_title',
+        'mentor_photo_profile', 'status', 'createdAt'
+      ],
+      include: {
+        model: Module,
+        as: 'modules',
+        attributes: ['id', 'title', 'sequence_order', 'video_url', 'ebook_url', 'quiz_id'],
+        order: [['sequence_order', 'ASC']]
+      }
+    });
+
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const result = {
+      ...course.toJSON(),
+      rating: 4.5,
+      review_count: Math.floor(Math.random() * 100) + 10,
+      level: 'Beginner'
+    };
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('Error getPublicCourseDetail:', err);
+    return res.status(500).json({ message: 'Server error.', error: err.message });
+  }
+};
+
+module.exports = {
+  getPublicLearningPaths,
+  getPublicLearningPathDetail,
+  getPublicCourses,
+  getPublicCourseDetail
+};

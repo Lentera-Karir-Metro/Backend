@@ -3,8 +3,8 @@
  * @fileoverview Dashboard Controller - Menangani statistik dan overview dashboard user
  */
 const db = require('../../models');
-const { 
-  UserEnrollment, 
+const {
+  UserEnrollment,
   Certificate,
   LearningPath,
   Course,
@@ -21,7 +21,7 @@ const { Op } = Sequelize;
  */
 exports.getDashboardStats = async (req, res) => {
   const userId = req.user.id;
-  
+
   try {
     // Count jumlah kelas (enrollment yang success)
     const totalKelas = await UserEnrollment.count({
@@ -56,10 +56,10 @@ exports.getDashboardStats = async (req, res) => {
     });
   } catch (err) {
     console.error('Error getDashboardStats:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Gagal mengambil data statistik dashboard', 
-      error: err.message 
+      message: 'Gagal mengambil data statistik dashboard',
+      error: err.message
     });
   }
 };
@@ -71,7 +71,7 @@ exports.getDashboardStats = async (req, res) => {
  */
 exports.getContinueLearning = async (req, res) => {
   const userId = req.user.id;
-  
+
   try {
     // Ambil semua enrollment user yang success (course-based)
     const enrollments = await UserEnrollment.findAll({
@@ -79,7 +79,7 @@ exports.getContinueLearning = async (req, res) => {
       include: {
         model: Course,
         as: 'Course',
-        attributes: ['id', 'title', 'description']
+        attributes: ['id', 'title', 'description', 'thumbnail_url']
       },
       order: [['enrolled_at', 'DESC']]
     });
@@ -109,6 +109,7 @@ exports.getContinueLearning = async (req, res) => {
           id: course.id,
           title: course.title,
           description: course.description,
+          thumbnail_url: course.thumbnail_url,
           progress_percent: progressPercent,
           total_modules: totalModules,
           completed_modules: completedModules
@@ -122,8 +123,8 @@ exports.getContinueLearning = async (req, res) => {
     );
 
     // Jika tidak ada yang in progress, ambil yang pertama kali enrolled
-    const continueData = inProgressLearning.length > 0 
-      ? inProgressLearning[0] 
+    const continueData = inProgressLearning.length > 0
+      ? inProgressLearning[0]
       : learningPathsWithProgress[0];
 
     return res.status(200).json({
@@ -132,10 +133,10 @@ exports.getContinueLearning = async (req, res) => {
     });
   } catch (err) {
     console.error('Error getContinueLearning:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Gagal mengambil data continue learning', 
-      error: err.message 
+      message: 'Gagal mengambil data continue learning',
+      error: err.message
     });
   }
 };
@@ -147,18 +148,18 @@ exports.getContinueLearning = async (req, res) => {
  */
 exports.getRecommendedCourses = async (req, res) => {
   const userId = req.user.id;
-  
+
   try {
     // Ambil kategori dari learning path yang sudah user ikuti
     // Recommended: return latest LearningPaths (no category/rating fields available anymore)
-    const recommended = await LearningPath.findAll({ attributes: ['id','title','description'], limit: 6, order: [['createdAt','DESC']] });
+    const recommended = await LearningPath.findAll({ attributes: ['id', 'title', 'description'], limit: 6, order: [['createdAt', 'DESC']] });
     return res.status(200).json({ success: true, data: recommended });
   } catch (err) {
     console.error('Error getRecommendedCourses:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Gagal mengambil data rekomendasi kelas', 
-      error: err.message 
+      message: 'Gagal mengambil data rekomendasi kelas',
+      error: err.message
     });
   }
 };

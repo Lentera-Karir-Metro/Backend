@@ -7,7 +7,8 @@ const { generateCustomId } = require('../src/utils/idGenerator');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      User.belongsToMany(models.LearningPath, { through: models.UserEnrollment, foreignKey: 'user_id', as: 'enrolledLearningPaths' });
+      // DEPRECATED: UserEnrollment tidak lagi junction table untuk User-LearningPath
+      // User.belongsToMany(models.LearningPath, { through: models.UserEnrollment, foreignKey: 'user_id', as: 'enrolledLearningPaths' });
       User.hasMany(models.UserEnrollment, { foreignKey: 'user_id', as: 'enrollments' });
       User.hasMany(models.UserModuleProgress, { foreignKey: 'user_id', as: 'moduleProgresses' });
       User.hasMany(models.UserQuizAttempt, { foreignKey: 'user_id', as: 'quizAttempts' });

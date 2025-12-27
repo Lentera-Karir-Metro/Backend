@@ -83,21 +83,27 @@ const createCourse = async (req, res) => {
   let mentor_photo_profile = req.body.mentor_photo_profile || null;
 
   try {
-    if (req.files) {
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       // Jika ada file thumbnail yang diupload
       const thumbnailFile = req.files.find(f => f.fieldname === 'thumbnail');
       if (thumbnailFile) {
+        console.log('Uploading thumbnail:', thumbnailFile.originalname);
         thumbnail_url = await uploadToSupabase(thumbnailFile, 'thumbnails', 'courses');
       }
 
       // Jika ada file mentor_photo yang diupload
       const mentorPhotoFile = req.files.find(f => f.fieldname === 'mentor_photo');
       if (mentorPhotoFile) {
+        console.log('Uploading mentor photo:', mentorPhotoFile.originalname);
         mentor_photo_profile = await uploadToSupabase(mentorPhotoFile, 'mentors', 'courses');
       }
     }
   } catch (uploadErr) {
-    return res.status(500).json({ message: 'Failed to upload files.', error: uploadErr.message });
+    console.error('Upload error:', uploadErr);
+    return res.status(500).json({ 
+      message: 'Failed to upload files.', 
+      error: uploadErr.message || 'Unknown upload error'
+    });
   }
 
   try {
@@ -119,6 +125,7 @@ const createCourse = async (req, res) => {
       course: newCourse
     });
   } catch (err) {
+    console.error('Database error:', err);
     return res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };
@@ -238,6 +245,33 @@ const reorderCourses = async (req, res) => {
 };
 
 /**
+ * @function getCourseById
+ * @description Mengambil detail course berdasarkan ID
+ * @route GET /api/v1/admin/courses/:id
+ */
+const getCourseById = async (req, res) => {
+  try {
+    const course = await Course.findByPk(req.params.id, {
+      include: [
+        {
+          model: db.Module,
+          as: 'modules',
+          attributes: ['id', 'title', 'sequence_order']
+        }
+      ]
+    });
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course tidak ditemukan.' });
+    }
+
+    return res.status(200).json(course);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error.', error: err.message });
+  }
+};
+
+/**
  * @function getAllCourses
  * @description Mengambil semua course, opsional filter by learning_path_id atau unassigned.
  * @route GET /api/v1/admin/courses
@@ -253,7 +287,17 @@ const getAllCourses = async (req, res) => {
       const courseIds = mappings.map(m => m.course_id);
       if (courseIds.length === 0) return res.status(200).json([]);
 
-      const courses = await Course.findAll({ where: { id: courseIds }, attributes: ['id', 'title'], });
+      const courses = await Course.findAll({ 
+        where: { id: courseIds }, 
+        attributes: ['id', 'title'],
+        include: [
+          {
+            model: db.Module,
+            as: 'modules',
+            attributes: ['id']
+          }
+        ]
+      });
       // Urutkan sesuai mapping order
       const ordered = courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean);
       return res.status(200).json(ordered);
@@ -266,14 +310,35 @@ const getAllCourses = async (req, res) => {
       const where = {};
       if (mappedIds.length > 0) where.id = { [db.Sequelize.Op.notIn]: mappedIds };
       if (search) where.title = { [db.Sequelize.Op.like]: `%${search}%` };
-      const courses = await Course.findAll({ where, attributes: ['id', 'title'], order: [['createdAt', 'DESC']] });
+      const courses = await Course.findAll({ 
+        where, 
+        attributes: ['id', 'title'], 
+        order: [['createdAt', 'DESC']],
+        include: [
+          {
+            model: db.Module,
+            as: 'modules',
+            attributes: ['id']
+          }
+        ]
+      });
       return res.status(200).json(courses);
     }
 
     // Default: list all courses (no learning path filter)
     const where = {};
     if (search) where.title = { [db.Sequelize.Op.like]: `%${search}%` };
-    const courses = await Course.findAll({ where, attributes: ['id', 'title'], order: [['createdAt', 'DESC']] });
+    const courses = await Course.findAll({ 
+      where, 
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: db.Module,
+          as: 'modules',
+          attributes: ['id', 'title', 'sequence_order']
+        }
+      ]
+    });
     return res.status(200).json(courses);
   } catch (err) {
     return res.status(500).json({ message: 'Server error.', error: err.message });
@@ -286,5 +351,6 @@ module.exports = {
   deleteCourse,
   reorderCourses,
   getAllCourses,
+  getCourseById,
   assignCourseToLearningPath
 };

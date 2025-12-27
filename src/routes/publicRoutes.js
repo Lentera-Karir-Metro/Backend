@@ -11,16 +11,9 @@ const router = express.Router();
 const {
   getPublicLearningPaths,
   getPublicLearningPathDetail,
+  getPublicCourses,
+  getPublicCourseDetail,
 } = require('../controllers/publicCatalogController');
-
-// Impor controller untuk Articles
-const {
-  getAllArticles,
-  getArticleById,
-  getLatestArticles,
-  getCategories,
-  getArticlesByCategory
-} = require('../controllers/articleController');
 
 // --- Pemasangan Middleware ---
 /**
@@ -46,37 +39,16 @@ router.get('/catalog/learning-paths/:id', getPublicLearningPathDetail);
 
 /**
  * @method GET
- * @route /articles
- * @description Mengambil semua artikel dengan pagination dan search (Public Access)
+ * @route /catalog/courses
+ * @description Mengambil daftar semua Courses yang tersedia untuk katalog publik.
  */
-router.get('/articles', getAllArticles);
+router.get('/catalog/courses', getPublicCourses);
 
 /**
  * @method GET
- * @route /articles/latest
- * @description Mengambil artikel terbaru (Public Access)
+ * @route /catalog/courses/:id
+ * @description Mengambil detail satu Course.
  */
-router.get('/articles/latest', getLatestArticles);
-
-/**
- * @method GET
- * @route /articles/categories
- * @description Mengambil semua kategori artikel (Public Access)
- */
-router.get('/articles/categories', getCategories);
-
-/**
- * @method GET
- * @route /articles/category/:category
- * @description Mengambil artikel berdasarkan kategori (Public Access)
- */
-router.get('/articles/category/:category', getArticlesByCategory);
-
-/**
- * @method GET
- * @route /articles/:id
- * @description Mengambil detail artikel berdasarkan ID (Public Access)
- */
-router.get('/articles/:id', getArticleById);
+router.get('/catalog/courses/:id', getPublicCourseDetail);
 
 module.exports = router;

@@ -35,6 +35,18 @@ const createQuiz = async (req, res) => {
   // Prioritaskan course_id dari URL (params), jika tidak ada ambil dari Body
   const finalCourseId = paramCourseId || bodyCourseId || null;
 
+  // Validate course exists if course_id is provided
+  if (finalCourseId) {
+    const Course = db.Course;
+    const course = await Course.findByPk(finalCourseId);
+    if (!course) {
+      return res.status(404).json({ 
+        message: 'Course tidak ditemukan.',
+        courseId: finalCourseId
+      });
+    }
+  }
+
   const transaction = await db.sequelize.transaction();
 
   try {
@@ -89,7 +101,12 @@ const createQuiz = async (req, res) => {
     return res.status(201).json(fullQuiz);
   } catch (err) {
     await transaction.rollback();
-    return res.status(500).json({ message: 'Server error.', error: err.message });
+    console.error('Error creating quiz:', err);
+    return res.status(500).json({ 
+      message: 'Server error saat membuat quiz.', 
+      error: err.message,
+      details: err.errors ? err.errors.map(e => e.message) : undefined
+    });
   }
 };
 
