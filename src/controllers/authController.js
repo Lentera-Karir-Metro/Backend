@@ -15,14 +15,14 @@ const { sendVerificationEmail, sendResetPasswordEmail } = require('../utils/emai
 // Access Token: Umur pendek (15 menit) untuk keamanan
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'secret_key_lentera_karir', {
-    expiresIn: '15m',
+    expiresIn: '1h',
   });
 };
 
 // Refresh Token: Umur panjang (7 hari) untuk memperbarui sesi
 const generateRefreshToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || 'refresh_secret_key_lentera_karir', {
-    expiresIn: '7d',
+    expiresIn: '2h',
   });
 };
 
