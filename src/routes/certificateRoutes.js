@@ -79,6 +79,12 @@ router.post(
 );
 
 /**
+ * @route DELETE /api/v1/certificates/admin/templates/:id
+ * @desc Delete certificate template (Admin)
+ */
+router.delete('/admin/templates/:id', isAdmin, certificateController.deleteTemplate);
+
+/**
  * @route POST /api/v1/certificates/admin/generate
  * @desc Generate single certificate
  * @access Admin

@@ -125,6 +125,11 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Email belum diverifikasi. Silakan cek email Anda.' });
     }
 
+    // Check if user is inactive
+    if (user.status === 'inactive') {
+      return res.status(403).json({ message: 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator.', code: 'USER_INACTIVE' });
+    }
+
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken(user.id);
 
@@ -285,6 +290,36 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+// Check user status endpoint
+const checkUserStatus = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'status']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('Check user status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   register,
   verifyEmail,
@@ -292,6 +327,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   refreshToken,
-  getCurrentUser
+  getCurrentUser,
+  checkUserStatus
 };
 

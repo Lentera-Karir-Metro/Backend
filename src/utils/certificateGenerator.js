@@ -7,10 +7,32 @@ const path = require('path');
 const fs = require('fs');
 
 /**
+ * Convert image to base64
+ */
+function imageToBase64(imagePath) {
+  try {
+    const imageBuffer = fs.readFileSync(imagePath);
+    const base64Image = imageBuffer.toString('base64');
+    const mimeType = imagePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    return `data:${mimeType};base64,${base64Image}`;
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return '';
+  }
+}
+
+/**
  * Generate HTML template for certificate
  */
 function generateCertificateHTML(data) {
   const { recipient_name, course_title, completion_date, instructor_name, background_url } = data;
+
+  // Convert signature images to base64
+  const ttd1Path = path.join(__dirname, '../../public/images/ttd1.png');
+  const ttd2Path = path.join(__dirname, '../../public/images/ttd2.png');
+  
+  const ttd1Base64 = imageToBase64(ttd1Path);
+  const ttd2Base64 = imageToBase64(ttd2Path);
 
   // Format date
   const formattedDate = new Date(completion_date).toLocaleDateString('id-ID', {
@@ -20,10 +42,10 @@ function generateCertificateHTML(data) {
   });
 
   // Base styles
-  let backgroundStyle = `background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);`;
+  let backgroundStyle = `background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);`;
   let containerStyle = `
       background: white;
-      border: 15px solid #f4f4f4;
+      border: 15px solid #2c3e50;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
   `;
   let overlayClass = '';
@@ -71,7 +93,6 @@ function generateCertificateHTML(data) {
       display: flex;
       align-items: center;
       justify-content: center;
-      /* Body background (outside paper in browser) */
       background: #eee; 
     }
     
@@ -96,15 +117,26 @@ function generateCertificateHTML(data) {
       ${containerStyle}
     }
     
-    /* Default Styles (Only apply if NOT custom template to avoid clashing) */
+    /* Decorative corners */
     .certificate:not(.custom-template)::before {
       content: '';
       position: absolute;
-      top: 20px;
-      left: 20px;
-      right: 20px;
-      bottom: 20px;
-      border: 2px solid #6B21FF;
+      top: 30px;
+      left: 30px;
+      right: 30px;
+      bottom: 30px;
+      border: 3px solid #d4af37;
+      pointer-events: none;
+    }
+    
+    .certificate:not(.custom-template)::after {
+      content: '';
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      right: 40px;
+      bottom: 40px;
+      border: 1px solid #d4af37;
       pointer-events: none;
     }
     
@@ -114,25 +146,28 @@ function generateCertificateHTML(data) {
     }
     
     .logo {
-      font-size: 48px;
-      color: #6B21FF;
+      font-size: 36px;
+      color: #2c3e50;
       font-weight: bold;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
+      letter-spacing: 2px;
     }
     
     .certificate-title {
-      font-size: 42px;
-      color: #333;
-      letter-spacing: 3px;
+      font-size: 48px;
+      color: #2c3e50;
+      letter-spacing: 4px;
       text-transform: uppercase;
       margin-bottom: 10px;
-      font-weight: 600;
+      font-weight: 700;
+      font-family: 'Times New Roman', serif;
     }
     
     .subtitle {
       font-size: 18px;
-      color: #666;
-      margin-bottom: 40px;
+      color: #555;
+      margin-bottom: 30px;
+      font-style: italic;
     }
     
     .content {
@@ -147,77 +182,74 @@ function generateCertificateHTML(data) {
     }
     
     .recipient-name {
-      font-size: 52px;
-      color: #6B21FF;
+      font-size: 56px;
+      color: #2c3e50;
       font-weight: bold;
       margin-bottom: 30px;
-      border-bottom: 3px solid #6B21FF;
+      border-bottom: 3px solid #d4af37;
       padding-bottom: 10px;
       display: inline-block;
+      font-family: 'Brush Script MT', cursive;
     }
     
     .achievement {
       font-size: 18px;
       color: #444;
       line-height: 1.8;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     
     .course-name {
       font-weight: bold;
-      color: #6B21FF;
-      font-size: 22px;
+      color: #2c3e50;
+      font-size: 24px;
+      margin-top: 10px;
     }
     
     .footer {
       display: flex;
-      justify-content: space-between;
+      justify-content: space-around;
       width: 100%;
-      max-width: 600px;
-      margin-top: 50px;
+      max-width: 700px;
+      margin-top: 40px;
     }
     
     .signature-block {
       text-align: center;
+      min-width: 180px;
+    }
+    
+    .signature-image {
+      width: 120px;
+      height: 60px;
+      margin: 0 auto 5px;
     }
     
     .signature-line {
-      border-top: 2px solid #333;
-      width: 200px;
-      margin: 0 auto 10px;
+      border-top: 2px solid #2c3e50;
+      width: 180px;
+      margin: 0 auto 8px;
     }
     
-    .date, .instructor {
+    .date {
       font-size: 14px;
       color: #666;
+      margin-bottom: 3px;
     }
     
-    .instructor {
+    .instructor, .founder-name {
       font-weight: bold;
-      color: #333;
+      color: #2c3e50;
+      font-size: 15px;
+      margin-bottom: 2px;
     }
     
-    /* Helper for Custom Template: 
-       If using custom template, we might want to hide default logo/seal 
-       if the template already has them. 
-       For now, we keep text overlay clean.
-    */
-    .custom-template .seal {
-        display: none; /* Hide default seal if custom template */
+    .title {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
     }
     
-    .custom-template .certificate-title,
-    .custom-template .logo {
-        /* Optional: Hide title/logo if template has it? 
-           For flexible usage, let's keep them but maybe adjust colors?
-           Let's assume template is just a border/background design.
-        */
-        text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
-    }
-    .custom-template .recipient-name {
-         text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
-    }
-
     .seal {
       position: absolute;
       bottom: 40px;
@@ -225,16 +257,27 @@ function generateCertificateHTML(data) {
       width: 100px;
       height: 100px;
       border-radius: 50%;
-      background: #6B21FF;
-      color: white;
+      background: linear-gradient(135deg, #d4af37 0%, #f4e4c1 100%);
+      color: #2c3e50;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
       text-align: center;
-      border: 5px solid #f4f4f4;
-      box-shadow: 0 4px 15px rgba(107, 33, 255, 0.3);
+      border: 6px solid #2c3e50;
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    }
+
+    .custom-template .certificate-title,
+    .custom-template .logo {
+        text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+    }
+    .custom-template .recipient-name {
+         text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+    }
+    .custom-template .seal {
+        display: none;
     }
   </style>
 </head>
@@ -243,18 +286,17 @@ function generateCertificateHTML(data) {
     <div class="certificate ${overlayClass}">
       ${!background_url ? `
       <div class="seal">
-        OFFICIAL<br>SEAL
+        LENTERA<br>KARIR
       </div>
       <div class="header">
         <div class="logo">LENTERA KARIR</div>
-        <div class="certificate-title">Certificate of Achievement</div>
-        <div class="subtitle">This certificate is proudly presented to</div>
+        <div class="certificate-title">Certificate of Completion</div>
+        <div class="subtitle">This is to certify that</div>
       </div>
       ` : `
-      <!-- Simplified Header for Custom Template -->
       <div class="header" style="margin-top: 50px;">
-        <div class="certificate-title">Certificate of Achievement</div>
-        <div class="subtitle">This certificate is proudly presented to</div>
+        <div class="certificate-title">Certificate of Completion</div>
+        <div class="subtitle">This is to certify that</div>
       </div>
       `}
       
@@ -262,23 +304,31 @@ function generateCertificateHTML(data) {
         <div class="recipient-name">${recipient_name}</div>
         
         <div class="achievement">
-          For successfully completing the course
-          <div class="course-name">${course_title}</div>
-          on ${formattedDate}
+          has successfully completed the course
+          <div class="course-name">"${course_title}"</div>
+          <div style="margin-top: 15px; font-size: 16px;">on ${formattedDate}</div>
         </div>
       </div>
       
       <div class="footer">
         <div class="signature-block">
+          ${ttd1Base64 ? `<img src="${ttd1Base64}" alt="Signature" class="signature-image" />` : ''}
           <div class="signature-line"></div>
-          <div class="date">${formattedDate}</div>
-          <div style="font-size: 12px; color: #333;">Date of Completion</div>
+          <div class="instructor">${instructor_name}</div>
+          <div class="title">Instructor</div>
         </div>
         
         <div class="signature-block">
+          <div class="date">${formattedDate}</div>
           <div class="signature-line"></div>
-          <div class="instructor">${instructor_name}</div>
-          <div style="font-size: 12px; color: #333;">Instructor</div>
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">Date of Completion</div>
+        </div>
+        
+        <div class="signature-block">
+          ${ttd2Base64 ? `<img src="${ttd2Base64}" alt="Signature" class="signature-image" />` : ''}
+          <div class="signature-line"></div>
+          <div class="founder-name">Founder</div>
+          <div class="title">Lentera Karir</div>
         </div>
       </div>
     </div>

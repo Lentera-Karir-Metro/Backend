@@ -251,6 +251,37 @@ exports.createTemplate = async (req, res) => {
 };
 
 /**
+ * @function deleteTemplate
+ * @description Admin - Hapus template sertifikat (hapus file di Supabase dan record DB)
+ * @route DELETE /api/v1/certificates/admin/templates/:id
+ */
+exports.deleteTemplate = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const template = await CertificateTemplate.findByPk(id);
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Template tidak ditemukan.' });
+    }
+
+    // Attempt to delete file from Supabase (best-effort)
+    try {
+      await deleteFromSupabase(template.file_url, 'certificates');
+    } catch (supErr) {
+      console.warn('Failed to delete file from Supabase for template', id, supErr.message);
+      // continue to remove DB record even if file deletion failed
+    }
+
+    await template.destroy();
+
+    return res.status(200).json({ success: true, message: 'Template berhasil dihapus.' });
+  } catch (err) {
+    console.error('Error deleteTemplate:', err.message);
+    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
+/**
  * @function generateCertificate
  * @description Admin - Generate sertifikat untuk user tertentu (by ID).
  * Data user dan course diambil otomatis dari database.

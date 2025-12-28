@@ -33,10 +33,15 @@ const protect = async (req, res, next) => {
     const user = await User.findByPk(decoded.id);
 
     if (!user) {
-      return res.status(401).json({ message: 'User tidak ditemukan di database lokal.' });
+      return res.status(404).json({ message: 'Akun Anda telah dihapus oleh administrator.', code: 'USER_DELETED' });
     }
 
-    // 3. Attach user ke request object
+    // 3. Check if user is inactive
+    if (user.status === 'inactive') {
+      return res.status(403).json({ message: 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator.', code: 'USER_INACTIVE' });
+    }
+
+    // 4. Attach user ke request object
     req.user = user;
     next();
   } catch (error) {
