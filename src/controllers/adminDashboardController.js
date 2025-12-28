@@ -23,17 +23,17 @@ const { Op } = Sequelize;
  */
 const getAdminDashboardStats = async (req, res) => {
   try {
-    // 1. Total Users
-    const totalUsers = await User.count();
+    // 1. Total Users (hanya role 'user', bukan admin)
+    const totalUsers = await User.count({ where: { role: 'user' } });
     
-    // 2. Total Active Users (status = 'active')
+    // 2. Total Active Users (status = 'active' dan role = 'user')
     const totalActiveUsers = await User.count({
-      where: { status: 'active' }
+      where: { status: 'active', role: 'user' }
     });
 
-    // 3. Total Inactive Users
+    // 3. Total Inactive Users (role = 'user')
     const totalInactiveUsers = await User.count({
-      where: { status: 'inactive' }
+      where: { status: 'inactive', role: 'user' }
     });
 
     // 4. Total Learning Paths
@@ -66,22 +66,24 @@ const getAdminDashboardStats = async (req, res) => {
     });
     const totalRevenue = revenueResult[0]?.total_revenue || 0;
 
-    // 11. Users registered in last 7 days
+    // 11. Users registered in last 7 days (role = 'user')
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const newUsersLast7Days = await User.count({
       where: {
+        role: 'user',
         createdAt: {
           [Op.gte]: sevenDaysAgo
         }
       }
     });
 
-    // 12. Users registered in last 30 days
+    // 12. Users registered in last 30 days (role = 'user')
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const newUsersLast30Days = await User.count({
       where: {
+        role: 'user',
         createdAt: {
           [Op.gte]: thirtyDaysAgo
         }
@@ -208,13 +210,14 @@ const getUserGrowthChart = async (req, res) => {
       });
     }
 
-    // Query user count per bulan
+    // Query user count per bulan (role = 'user')
     const userCounts = await User.findAll({
       attributes: [
         [Sequelize.fn('YEAR', Sequelize.col('createdAt')), 'year'],
         [Sequelize.fn('MONTH', Sequelize.col('createdAt')), 'month'],
         [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
       ],
+      where: { role: 'user' },
       group: [
         Sequelize.fn('YEAR', Sequelize.col('createdAt')),
         Sequelize.fn('MONTH', Sequelize.col('createdAt'))
@@ -223,18 +226,46 @@ const getUserGrowthChart = async (req, res) => {
       subQuery: false
     });
 
-    // Map hasil ke monthsData
+    // Map userCounts into monthsData
     userCounts.forEach(uc => {
       const key = `${uc.year}-${String(uc.month).padStart(2, '0')}`;
       const foundMonth = monthsData.find(m => m.monthKey === key);
       if (foundMonth) {
-        foundMonth.count = parseInt(uc.count);
+        foundMonth.userCount = parseInt(uc.count) || 0;
+      }
+    });
+
+    // Count mentors per month by looking at Courses (mentors are derived from Course.mentor_name)
+    const mentorCounts = await Course.findAll({
+      attributes: [
+        [Sequelize.fn('YEAR', Sequelize.col('createdAt')), 'year'],
+        [Sequelize.fn('MONTH', Sequelize.col('createdAt')), 'month'],
+        // Count distinct mentor_name per month
+        [Sequelize.fn('COUNT', Sequelize.fn('DISTINCT', Sequelize.col('mentor_name'))), 'mentor_count']
+      ],
+      where: {
+        mentor_name: { [Op.ne]: null }
+      },
+      group: [
+        Sequelize.fn('YEAR', Sequelize.col('createdAt')),
+        Sequelize.fn('MONTH', Sequelize.col('createdAt'))
+      ],
+      raw: true,
+      subQuery: false
+    });
+
+    mentorCounts.forEach(mc => {
+      const key = `${mc.year}-${String(mc.month).padStart(2, '0')}`;
+      const foundMonth = monthsData.find(m => m.monthKey === key);
+      if (foundMonth) {
+        foundMonth.mentorCount = parseInt(mc.mentor_count) || 0;
       }
     });
 
     const data = monthsData.map(m => ({
       month: m.month,
-      newUsers: m.count
+      newUsers: m.userCount || 0,
+      newMentors: m.mentorCount || 0
     }));
 
     return res.status(200).json({

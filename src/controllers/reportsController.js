@@ -73,8 +73,8 @@ const getUserAnalytics = async (req, res) => {
 
 /**
  * @function getClassPerformance
- * @description Mengambil performa kelas (Learning Path) untuk UI Report & Monitoring.
- * Menampilkan Judul, Kategori, dan Jumlah Enroll.
+ * @description Mengambil performa kelas (Courses) untuk UI Report & Monitoring.
+ * Menampilkan Judul Kelas, Kategori, dan Jumlah Enroll.
  * @route GET /api/v1/admin/reports/class-performance
  */
 const getClassPerformance = async (req, res) => {
@@ -95,16 +95,16 @@ const getClassPerformance = async (req, res) => {
       };
     }
 
-    // Ambil LearningPath + Courses + enrollments per course, lalu hitung total enrollments per LP
-    const { count, rows } = await LearningPath.findAndCountAll({
+    // Ambil Courses dengan enrollments count
+    const { count, rows } = await Course.findAndCountAll({
       where: whereClause,
-      attributes: ['id', 'title'],
+      attributes: ['id', 'title', 'category'],
       include: [
         {
-          model: Course,
-          as: 'courses',
+          model: UserEnrollment,
+          as: 'enrollments',
           attributes: ['id'],
-          include: [{ model: UserEnrollment, as: 'enrollments', attributes: ['id'], where: Object.keys(enrollmentWhere).length > 0 ? enrollmentWhere : undefined, required: false }],
+          where: Object.keys(enrollmentWhere).length > 0 ? enrollmentWhere : undefined,
           required: false
         }
       ],
@@ -114,10 +114,11 @@ const getClassPerformance = async (req, res) => {
       order: [['title', 'ASC']]
     });
 
-    const data = rows.map(lp => ({
-      id: lp.id,
-      title: lp.title,
-      total_enrollments: lp.courses.reduce((sum, c) => sum + (c.enrollments ? c.enrollments.length : 0), 0)
+    const data = rows.map(course => ({
+      id: course.id,
+      title: course.title,
+      category: course.category || 'Uncategorized',
+      total_enrollments: course.enrollments ? course.enrollments.length : 0
     }));
 
     return res.status(200).json({

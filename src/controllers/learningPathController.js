@@ -24,10 +24,17 @@ const createLearningPath = async (req, res) => {
 
   const t = await db.sequelize.transaction();
   try {
+    // Handle thumbnail upload jika ada
+    let thumbnailUrl = null;
+    if (req.file) {
+      thumbnailUrl = await uploadToSupabase(req.file, 'thumbnails', 'learning-paths');
+    }
+
     // Buat learning path
     const newLearningPath = await LearningPath.create({
       title,
       description: description || null,
+      thumbnail: thumbnailUrl,
     }, { transaction: t });
 
     // Validasi semua course_id
@@ -170,8 +177,19 @@ const updateLearningPath = async (req, res) => {
       return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
     }
 
+    // Handle thumbnail upload jika ada
+    let thumbnailUrl = learningPath.thumbnail;
+    if (req.file) {
+      // Hapus thumbnail lama jika ada
+      if (learningPath.thumbnail) {
+        await deleteFromSupabase(learningPath.thumbnail);
+      }
+      thumbnailUrl = await uploadToSupabase(req.file, 'thumbnails', 'learning-paths');
+    }
+
     learningPath.title = title || learningPath.title;
     learningPath.description = description || learningPath.description;
+    learningPath.thumbnail = thumbnailUrl;
     await learningPath.save({ transaction: t });
 
     // Handle Courses Reordering/Assignment (Sync) via LearningPathCourses

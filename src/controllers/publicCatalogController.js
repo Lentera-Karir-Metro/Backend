@@ -11,7 +11,7 @@ const getPublicLearningPaths = async (req, res) => {
 
     // 1) Ambil halaman LearningPath terlebih dahulu (paged)
     const learningPaths = await LearningPath.findAll({
-      attributes: ['id', 'title', 'description', 'createdAt'],
+      attributes: ['id', 'title', 'description', 'thumbnail', 'createdAt'],
       order: [['createdAt', 'DESC']],
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
@@ -45,7 +45,7 @@ const getPublicLearningPaths = async (req, res) => {
 const getPublicLearningPathDetail = async (req, res) => {
   try {
     const learningPath = await LearningPath.findByPk(req.params.id, {
-      attributes: ['id', 'title', 'description', 'createdAt'],
+      attributes: ['id', 'title', 'description', 'thumbnail', 'createdAt'],
       include: {
         model: Course,
         as: 'courses',

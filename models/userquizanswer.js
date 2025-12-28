@@ -53,8 +53,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     selected_option_id: {
       type: DataTypes.INTEGER,
-      allowNull: false, // Opsi yang dipilih oleh pengguna
-      references: { model: 'Options', key: 'id' }, // Relasi ke opsi
+      allowNull: false, // Required untuk semua soal
+      references: { model: 'Options', key: 'id' },
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },

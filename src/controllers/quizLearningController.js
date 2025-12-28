@@ -27,24 +27,24 @@ const validateQuizAccess = async (userId, quizId) => {
   // Cari modul yang terkait dengan kuis ini
   const module = await Module.findOne({ 
     where: { quiz_id: quizId },
-    include: { model: Course, as: 'course', attributes: ['learning_path_id'] }
+    include: { model: Course, as: 'course', attributes: ['id'] } // Hanya ambil id, karena learning_path_id tidak ada
   });
 
   if (!module) {
     return { error: 'Kuis tidak terkait dengan modul manapun.', status: 404 };
   }
 
-  // Cek apakah user terdaftar (enrollment sukses) di Learning Path terkait
+  // Cek apakah user terdaftar (enrollment sukses) di Course terkait
   const enrollment = await UserEnrollment.findOne({
     where: {
       user_id: userId,
-      learning_path_id: module.course.learning_path_id,
+      course_id: module.course.id, // Gunakan course_id bukan learning_path_id
       status: 'success'
     }
   });
 
   if (!enrollment) {
-    return { error: 'Akses ditolak. Anda tidak terdaftar di learning path kuis ini.', status: 403 };
+    return { error: 'Akses ditolak. Anda tidak terdaftar di course kuis ini.', status: 403 };
   }
 
   // (Validasi penguncian (lock) konten dilakukan di controller learningController, 
@@ -99,7 +99,7 @@ const startOrResumeQuiz = async (req, res) => {
       include: {
         model: Question,
         as: 'questions',
-        attributes: ['id', 'question_text'],
+        attributes: ['id', 'question_text', 'question_type'], // Tambahkan question_type
         include: {
           model: Option,
           as: 'options',
@@ -174,7 +174,6 @@ const savePartialAnswer = async (req, res) => {
     }
 
     // 2. Simpan atau Update jawaban (Upsert)
-    // Jawaban lama untuk pertanyaan yang sama akan ditimpa
     await UserQuizAnswer.upsert({
       user_quiz_attempt_id: attempt_id,
       question_id: question_id,
@@ -212,18 +211,27 @@ const submitQuiz = async (req, res) => {
       return res.status(404).json({ message: 'Sesi kuis tidak ditemukan atau sudah disubmit.' });
     }
 
-    // 2. Ambil semua jawaban user & semua jawaban benar dari database
+    // 2. Ambil semua jawaban user & semua soal quiz
     const userAnswers = await UserQuizAnswer.findAll({
       where: { user_quiz_attempt_id: attempt.id }
     });
 
+    // Ambil semua question di quiz (hanya pilihan ganda dan benar/salah)
+    const allQuestions = await Question.findAll({
+      where: { quiz_id: attempt.quiz_id },
+      attributes: ['id', 'question_type']
+    });
+
+    // Ambil jawaban benar untuk semua soal
     const correctOptions = await Option.findAll({
       where: { is_correct: true },
       include: {
         model: Question,
         as: 'question',
-        attributes: ['id'],
-        where: { quiz_id: attempt.quiz_id }
+        attributes: ['id', 'question_type'],
+        where: { 
+          quiz_id: attempt.quiz_id
+        }
       }
     });
 
@@ -233,10 +241,11 @@ const submitQuiz = async (req, res) => {
       return acc;
     }, {});
 
-    const totalQuestions = Object.keys(correctMap).length;
+    const totalQuestions = allQuestions.length;
 
-    // 4. Hitung skor
+    // 4. Hitung skor - semua soal dinilai berdasarkan pilihan yang benar
     let correctCount = 0;
+    
     for (const answer of userAnswers) {
       // Cek apakah option_id yang dipilih user sama dengan option_id yang benar
       if (correctMap[answer.question_id] === answer.selected_option_id) {
@@ -246,7 +255,7 @@ const submitQuiz = async (req, res) => {
 
     const score = totalQuestions > 0 ? (correctCount / totalQuestions) : 0;
     const passThreshold = attempt.Quiz.pass_threshold;
-    const isPassed = score >= passThreshold; //
+    const isPassed = score >= passThreshold;
 
     // 5. Update status attempt di database
     attempt.status = 'completed';

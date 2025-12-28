@@ -251,11 +251,26 @@ const markModuleAsComplete = async (req, res) => {
   const { module_id } = req.params;
 
   try {
+    console.log('[markModuleAsComplete] Request:', { userId, module_id });
+
     // 1. Cek Modul
     const module = await Module.findByPk(module_id, {
-      include: { model: Course, attributes: ['id', 'mentor_name', 'sequence_order'] }
+      include: { 
+        model: Course, 
+        as: 'course', // Gunakan alias yang didefinisikan di model
+        attributes: ['id', 'mentor_name'] // Hapus sequence_order karena tidak ada di tabel Course
+      }
     });
-    if (!module) return res.status(404).json({ message: 'Modul tidak ditemukan.' });
+    
+    if (!module) {
+      console.log('[markModuleAsComplete] Module not found:', module_id);
+      return res.status(404).json({ message: 'Modul tidak ditemukan.' });
+    }
+
+    console.log('[markModuleAsComplete] Module found:', { 
+      id: module.id, 
+      course_id: module.course_id 
+    });
 
     // 2. Cek Enrollment
     const enrollment = await UserEnrollment.findOne({
@@ -265,7 +280,13 @@ const markModuleAsComplete = async (req, res) => {
         status: 'success'
       }
     });
-    if (!enrollment) return res.status(403).json({ message: 'Akses ditolak.' });
+    
+    if (!enrollment) {
+      console.log('[markModuleAsComplete] Enrollment not found:', { userId, course_id: module.course_id });
+      return res.status(403).json({ message: 'Akses ditolak. Anda belum terdaftar di kelas ini.' });
+    }
+
+    console.log('[markModuleAsComplete] Enrollment found');
 
     // 3. Validasi Urutan (DISABLED - Allow any order)
     // Users can complete modules in any order
@@ -276,16 +297,32 @@ const markModuleAsComplete = async (req, res) => {
       defaults: { is_completed: true }
     });
 
+    console.log('[markModuleAsComplete] Progress saved:', { created, progress: progress.id });
+
+    console.log('[markModuleAsComplete] Progress saved:', { created, progress: progress.id });
+
     // 5. Check if Learning Path is 100% complete → Auto-generate certificate
     if (created) {
       await checkAndCreatePendingCertificate(userId, module.course_id);
     }
 
-    return res.status(200).json({ message: 'Modul selesai.' });
+    console.log('[markModuleAsComplete] Success');
+    return res.status(200).json({ 
+      message: 'Modul selesai.',
+      data: {
+        module_id: module.id,
+        is_completed: true,
+        created: created
+      }
+    });
 
   } catch (err) {
-    console.error('Error saat update progress:', err.message);
-    return res.status(500).json({ message: 'Server error.', error: err.message });
+    console.error('[markModuleAsComplete] Error:', err.message);
+    console.error('[markModuleAsComplete] Stack:', err.stack);
+    return res.status(500).json({ 
+      message: 'Server error.', 
+      error: err.message 
+    });
   }
 };
 
@@ -366,23 +403,16 @@ const getMyEbooks = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    // Resolve LP ids from enrolled courses
     const enrolledCourseIds = enrollments.map(e => e.course_id).filter(Boolean);
-    let learningPathIds = [];
-    if (enrolledCourseIds.length) {
-      const mappings = await db.LearningPathCourse.findAll({ where: { course_id: enrolledCourseIds }, attributes: ['learning_path_id'] });
-      learningPathIds = [...new Set(mappings.map(m => m.learning_path_id))];
-    }
-    console.log('Learning Path IDs:', learningPathIds);
+    console.log('Enrolled Course IDs:', enrolledCourseIds);
 
-    // If no learning paths found, return empty
-    if (learningPathIds.length === 0) {
-      console.log('No learning paths found, returning empty array');
+    if (enrolledCourseIds.length === 0) {
+      console.log('No course IDs found, returning empty array');
       return res.status(200).json({ success: true, data: [] });
     }
 
     // Step 2: Query ebooks yang sudah di-download (exist in UserModuleProgress)
-    // Hanya ebook yang user sudah klik download/complete yang muncul
+    // Simplified query - langsung dari enrolled courses
     const ebooks = await db.sequelize.query(
       `SELECT DISTINCT
         m.id, 
@@ -394,19 +424,19 @@ const getMyEbooks = async (req, res) => {
         m.sequence_order
        FROM Modules m
        JOIN Courses c ON m.course_id = c.id
-       JOIN LearningPathCourses lpc ON lpc.course_id = c.id
        JOIN UserModuleProgresses ump ON ump.module_id = m.id AND ump.user_id = :userId
-      WHERE lpc.learning_path_id IN (:ids)
-      AND m.ebook_url IS NOT NULL
-      AND ump.is_completed = 1
+       WHERE c.id IN (:courseIds)
+       AND m.ebook_url IS NOT NULL
+       AND ump.is_completed = 1
        ORDER BY c.id, m.sequence_order ASC`,
       {
-        replacements: { userId, ids: learningPathIds },
+        replacements: { userId, courseIds: enrolledCourseIds },
         type: db.Sequelize.QueryTypes.SELECT
       }
     );
 
     console.log('Downloaded ebooks found:', ebooks.length);
+    console.log('Ebook details:', JSON.stringify(ebooks, null, 2));
     console.log('=== GET MY EBOOKS SUCCESS ===');
 
     return res.status(200).json({ success: true, data: ebooks });
@@ -561,7 +591,7 @@ const getCourseContent = async (req, res) => {
     };
 
     // Transform modules
-    const transformedModules = (courseData.modules || []).map(module => {
+    const transformedModules = await Promise.all((courseData.modules || []).map(async module => {
       // Derive type from available fields
       let type = 'quiz';
       if (module.video_url) {
@@ -570,6 +600,24 @@ const getCourseContent = async (req, res) => {
         type = 'ebook';
       } else if (module.quiz_id) {
         type = 'quiz';
+      }
+
+      // For quiz modules, check if user has passed
+      let is_passed = null;
+      if (type === 'quiz' && module.quiz_id) {
+        const quizAttempt = await db.UserQuizAttempt.findOne({
+          where: { 
+            user_id: userId, 
+            quiz_id: module.quiz_id,
+            status: 'completed'
+          },
+          include: { model: db.Quiz, attributes: ['pass_threshold'] },
+          order: [['score', 'DESC']] // Get best attempt
+        });
+        
+        if (quizAttempt) {
+          is_passed = quizAttempt.score >= quizAttempt.Quiz.pass_threshold;
+        }
       }
 
       return {
@@ -582,12 +630,28 @@ const getCourseContent = async (req, res) => {
         quiz_id: module.quiz_id,
         duration: 0,
         is_completed: completedModuleIds.has(module.id),
-        is_locked: false
+        is_passed: is_passed, // null for non-quiz, true/false for quiz
+        is_locked: false // Will be calculated below
       };
-    });
+    }));
 
     // Sort modules by sequence_order
     transformedModules.sort((a, b) => a.sequence_order - b.sequence_order);
+
+    // Progressive unlock logic: Lock modules that come after incomplete modules
+    // The first module (sequence_order = 1) is always unlocked
+    for (let i = 0; i < transformedModules.length; i++) {
+      const currentModule = transformedModules[i];
+      
+      if (i === 0) {
+        // First module is always unlocked
+        currentModule.is_locked = false;
+      } else {
+        // Lock if previous module is not completed
+        const previousModule = transformedModules[i - 1];
+        currentModule.is_locked = !previousModule.is_completed;
+      }
+    }
 
     // Calculate completed count
     const completedCount = transformedModules.filter(m => m.is_completed).length;

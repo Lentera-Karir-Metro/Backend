@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     id: { type: DataTypes.STRING(16), allowNull: false, primaryKey: true, unique: true, defaultValue: () => generateCustomId('LP') },
     title: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT },
+    thumbnail: { type: DataTypes.STRING, allowNull: true },
   }, {
     sequelize,
     modelName: 'LearningPath',
