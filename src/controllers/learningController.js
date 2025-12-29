@@ -639,17 +639,37 @@ const getCourseContent = async (req, res) => {
     transformedModules.sort((a, b) => a.sequence_order - b.sequence_order);
 
     // Progressive unlock logic: Lock modules that come after incomplete modules
-    // The first module (sequence_order = 1) is always unlocked
+    // Ebooks are ALWAYS unlocked (optional) and don't affect the unlock sequence
+    // Only videos and quizzes participate in sequential unlocking
     for (let i = 0; i < transformedModules.length; i++) {
       const currentModule = transformedModules[i];
+      
+      // Ebooks are always unlocked - they're optional
+      if (currentModule.type === 'ebook') {
+        currentModule.is_locked = false;
+        continue;
+      }
       
       if (i === 0) {
         // First module is always unlocked
         currentModule.is_locked = false;
       } else {
-        // Lock if previous module is not completed
-        const previousModule = transformedModules[i - 1];
-        currentModule.is_locked = !previousModule.is_completed;
+        // Find the previous non-ebook module to check completion
+        let previousNonEbookModule = null;
+        for (let j = i - 1; j >= 0; j--) {
+          if (transformedModules[j].type !== 'ebook') {
+            previousNonEbookModule = transformedModules[j];
+            break;
+          }
+        }
+        
+        // Lock if previous non-ebook module is not completed
+        // If no previous non-ebook module exists, unlock this module
+        if (previousNonEbookModule) {
+          currentModule.is_locked = !previousNonEbookModule.is_completed;
+        } else {
+          currentModule.is_locked = false;
+        }
       }
     }
 

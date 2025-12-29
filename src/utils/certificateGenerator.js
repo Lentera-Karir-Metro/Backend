@@ -319,12 +319,6 @@ function generateCertificateHTML(data) {
         </div>
         
         <div class="signature-block">
-          <div class="date">${formattedDate}</div>
-          <div class="signature-line"></div>
-          <div style="font-size: 12px; color: #666; margin-top: 5px;">Date of Completion</div>
-        </div>
-        
-        <div class="signature-block">
           ${ttd2Base64 ? `<img src="${ttd2Base64}" alt="Signature" class="signature-image" />` : ''}
           <div class="signature-line"></div>
           <div class="founder-name">Founder</div>
