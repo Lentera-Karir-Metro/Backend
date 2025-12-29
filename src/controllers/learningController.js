@@ -255,21 +255,21 @@ const markModuleAsComplete = async (req, res) => {
 
     // 1. Cek Modul
     const module = await Module.findByPk(module_id, {
-      include: { 
-        model: Course, 
+      include: {
+        model: Course,
         as: 'course', // Gunakan alias yang didefinisikan di model
         attributes: ['id', 'mentor_name'] // Hapus sequence_order karena tidak ada di tabel Course
       }
     });
-    
+
     if (!module) {
       console.log('[markModuleAsComplete] Module not found:', module_id);
       return res.status(404).json({ message: 'Modul tidak ditemukan.' });
     }
 
-    console.log('[markModuleAsComplete] Module found:', { 
-      id: module.id, 
-      course_id: module.course_id 
+    console.log('[markModuleAsComplete] Module found:', {
+      id: module.id,
+      course_id: module.course_id
     });
 
     // 2. Cek Enrollment
@@ -280,7 +280,7 @@ const markModuleAsComplete = async (req, res) => {
         status: 'success'
       }
     });
-    
+
     if (!enrollment) {
       console.log('[markModuleAsComplete] Enrollment not found:', { userId, course_id: module.course_id });
       return res.status(403).json({ message: 'Akses ditolak. Anda belum terdaftar di kelas ini.' });
@@ -307,7 +307,7 @@ const markModuleAsComplete = async (req, res) => {
     }
 
     console.log('[markModuleAsComplete] Success');
-    return res.status(200).json({ 
+    return res.status(200).json({
       message: 'Modul selesai.',
       data: {
         module_id: module.id,
@@ -319,9 +319,9 @@ const markModuleAsComplete = async (req, res) => {
   } catch (err) {
     console.error('[markModuleAsComplete] Error:', err.message);
     console.error('[markModuleAsComplete] Stack:', err.stack);
-    return res.status(500).json({ 
-      message: 'Server error.', 
-      error: err.message 
+    return res.status(500).json({
+      message: 'Server error.',
+      error: err.message
     });
   }
 };
@@ -606,15 +606,15 @@ const getCourseContent = async (req, res) => {
       let is_passed = null;
       if (type === 'quiz' && module.quiz_id) {
         const quizAttempt = await db.UserQuizAttempt.findOne({
-          where: { 
-            user_id: userId, 
+          where: {
+            user_id: userId,
             quiz_id: module.quiz_id,
             status: 'completed'
           },
           include: { model: db.Quiz, attributes: ['pass_threshold'] },
           order: [['score', 'DESC']] // Get best attempt
         });
-        
+
         if (quizAttempt) {
           is_passed = quizAttempt.score >= quizAttempt.Quiz.pass_threshold;
         }
@@ -643,13 +643,13 @@ const getCourseContent = async (req, res) => {
     // Only videos and quizzes participate in sequential unlocking
     for (let i = 0; i < transformedModules.length; i++) {
       const currentModule = transformedModules[i];
-      
+
       // Ebooks are always unlocked - they're optional
       if (currentModule.type === 'ebook') {
         currentModule.is_locked = false;
         continue;
       }
-      
+
       if (i === 0) {
         // First module is always unlocked
         currentModule.is_locked = false;
@@ -662,7 +662,7 @@ const getCourseContent = async (req, res) => {
             break;
           }
         }
-        
+
         // Lock if previous non-ebook module is not completed
         // If no previous non-ebook module exists, unlock this module
         if (previousNonEbookModule) {
