@@ -83,6 +83,9 @@ app.use('/api/v1/admin/batch', batchOperationsRoutes); // Batch Operations
 const mentorRoutes = require('./src/routes/mentorRoutes');
 app.use('/api/v1/admin', mentorRoutes); // Mentor Management
 
+const categoryRoutes = require('./src/routes/categoryRoutes');
+app.use('/api/v1/admin/categories', categoryRoutes); // Category Management
+
 // --- C. Rute Otomatisasi (Webhooks) ---
 const webhookRoutes = require('./src/routes/webhookRoutes');
 app.use('/api/v1', webhookRoutes); // Webhook Midtrans & Supabase (Tidak Terproteksi)

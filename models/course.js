@@ -34,6 +34,16 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'course_id',
         as: 'enrollments', // Alias untuk relasi
       });
+      // Sebuah Course belongs to satu Category
+      Course.belongsTo(models.Category, {
+        foreignKey: 'category_id',
+        as: 'categoryData',
+      });
+      // Sebuah Course belongs to satu Mentor
+      Course.belongsTo(models.Mentor, {
+        foreignKey: 'mentor_id',
+        as: 'mentorData',
+      });
     }
   }
 
@@ -47,7 +57,7 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       unique: true,
       defaultValue: () => generateCustomId('CR')
-      
+
     },
     title: {
       type: DataTypes.STRING,
@@ -56,19 +66,21 @@ module.exports = (sequelize, DataTypes) => {
     description: {
       type: DataTypes.TEXT, // Deskripsi singkat tentang Course
     },
-    price: { type: DataTypes.DECIMAL(10,2), allowNull: false, defaultValue: 0.00 },
+    price: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 },
     thumbnail_url: { type: DataTypes.STRING, allowNull: true },
-    discount_amount: { type: DataTypes.DECIMAL(10,2), allowNull: false, defaultValue: 0.00 },
-    category: { type: DataTypes.STRING, allowNull: false, defaultValue: 'All' },
-    mentor_name: { type: DataTypes.STRING, allowNull: true },
-    mentor_title: { type: DataTypes.STRING, allowNull: true },
-    mentor_photo_profile: { type: DataTypes.STRING, allowNull: true },
+    discount_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0.00 },
+    category: { type: DataTypes.STRING, allowNull: true, defaultValue: null }, // Legacy field
+    category_id: { type: DataTypes.STRING(16), allowNull: true }, // FK to Category
+    mentor_id: { type: DataTypes.STRING(16), allowNull: true }, // FK to Mentor
+    mentor_name: { type: DataTypes.STRING, allowNull: true }, // Legacy field
+    mentor_title: { type: DataTypes.STRING, allowNull: true }, // Legacy field
+    mentor_photo_profile: { type: DataTypes.STRING, allowNull: true }, // Legacy field
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'published' },
   }, {
     sequelize,
     modelName: 'Course',
     timestamps: true, // Otomatis menambah createdAt dan updatedAt
-    
+
     // Definisikan 'hook' (fungsi) yang berjalan otomatis
     hooks: {
       /**

@@ -69,6 +69,7 @@ const createCourse = async (req, res) => {
     price,
     discount_amount,
     category,
+    mentor_id,
     mentor_name,
     mentor_title,
     status
@@ -100,8 +101,8 @@ const createCourse = async (req, res) => {
     }
   } catch (uploadErr) {
     console.error('Upload error:', uploadErr);
-    return res.status(500).json({ 
-      message: 'Failed to upload files.', 
+    return res.status(500).json({
+      message: 'Failed to upload files.',
       error: uploadErr.message || 'Unknown upload error'
     });
   }
@@ -114,6 +115,7 @@ const createCourse = async (req, res) => {
       thumbnail_url,
       discount_amount: discount_amount || 0,
       category: category || 'All',
+      mentor_id: mentor_id || null,
       mentor_name: mentor_name || null,
       mentor_title: mentor_title || null,
       mentor_photo_profile,
@@ -142,7 +144,7 @@ const createCourse = async (req, res) => {
 const { deleteFromSupabase } = require('../utils/uploadToSupabase');
 
 const updateCourse = async (req, res) => {
-  const { title, description, price, discount_amount, category, mentor_name, mentor_title, status } = req.body;
+  const { title, description, price, discount_amount, category, mentor_id, mentor_name, mentor_title, status } = req.body;
   try {
     const course = await Course.findByPk(req.params.id);
     if (!course) {
@@ -154,6 +156,7 @@ const updateCourse = async (req, res) => {
     course.price = price !== undefined ? price : course.price;
     course.discount_amount = discount_amount !== undefined ? discount_amount : course.discount_amount;
     course.category = category || course.category;
+    course.mentor_id = mentor_id !== undefined ? mentor_id : course.mentor_id;
     course.mentor_name = mentor_name || course.mentor_name;
     course.mentor_title = mentor_title || course.mentor_title;
     course.status = status || course.status;
@@ -287,8 +290,8 @@ const getAllCourses = async (req, res) => {
       const courseIds = mappings.map(m => m.course_id);
       if (courseIds.length === 0) return res.status(200).json([]);
 
-      const courses = await Course.findAll({ 
-        where: { id: courseIds }, 
+      const courses = await Course.findAll({
+        where: { id: courseIds },
         attributes: ['id', 'title'],
         include: [
           {
@@ -310,9 +313,9 @@ const getAllCourses = async (req, res) => {
       const where = {};
       if (mappedIds.length > 0) where.id = { [db.Sequelize.Op.notIn]: mappedIds };
       if (search) where.title = { [db.Sequelize.Op.like]: `%${search}%` };
-      const courses = await Course.findAll({ 
-        where, 
-        attributes: ['id', 'title'], 
+      const courses = await Course.findAll({
+        where,
+        attributes: ['id', 'title'],
         order: [['createdAt', 'DESC']],
         include: [
           {
@@ -328,8 +331,8 @@ const getAllCourses = async (req, res) => {
     // Default: list all courses (no learning path filter)
     const where = {};
     if (search) where.title = { [db.Sequelize.Op.like]: `%${search}%` };
-    const courses = await Course.findAll({ 
-      where, 
+    const courses = await Course.findAll({
+      where,
       order: [['createdAt', 'DESC']],
       include: [
         {

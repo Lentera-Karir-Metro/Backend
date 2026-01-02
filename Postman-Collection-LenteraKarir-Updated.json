@@ -195,6 +195,15 @@
             "url": "{{base_url}}/api/v1/auth/me"
           }
         }
+        ,
+        {
+          "name": "Cek Status User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/auth/check-status"
+          }
+        }
       ]
     },
     {
@@ -217,43 +226,19 @@
           }
         },
         {
-          "name": "Ambil Semua Artikel",
+          "name": "Ambil Semua Course (Publik)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/articles"
+            "url": "{{base_url}}/api/v1/catalog/courses"
           }
         },
         {
-          "name": "Ambil Artikel Terbaru",
+          "name": "Ambil Detail Course (Publik)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{base_url}}/api/v1/articles/latest"
-          }
-        },
-        {
-          "name": "Ambil Kategori Artikel",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/v1/articles/categories"
-          }
-        },
-        {
-          "name": "Ambil Artikel berdasarkan Kategori",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/v1/articles/category/Technology"
-          }
-        },
-        {
-          "name": "Ambil Detail Artikel",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{base_url}}/api/v1/articles/{{article_id}}"
+            "url": "{{base_url}}/api/v1/catalog/courses/{{course_id}}"
           }
         }
       ]
@@ -291,6 +276,14 @@
             "method": "GET",
             "header": [],
             "url": "{{base_url}}/api/v1/learn/dashboard"
+          }
+        },
+        {
+          "name": "Kursus Saya (My Courses)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/learn/my-courses"
           }
         },
         {
@@ -1190,73 +1183,35 @@
           ]
         },
         {
-          "name": "Artikel",
+          "name": "Mentor",
           "item": [
             {
-              "name": "Daftar Semua (Admin)",
+              "name": "Daftar Mentor",
               "request": {
                 "method": "GET",
                 "header": [],
-                "url": "{{base_url}}/api/v1/admin/articles"
+                "url": "{{base_url}}/api/v1/admin/mentors"
               }
             },
             {
-              "name": "Buat Artikel",
+              "name": "Ambil Detail Mentor",
               "request": {
-                "method": "POST",
+                "method": "GET",
                 "header": [],
-                "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    {
-                      "key": "title",
-                      "value": "New Article",
-                      "type": "text"
-                    },
-                    {
-                      "key": "content",
-                      "value": "Content",
-                      "type": "text"
-                    },
-                    {
-                      "key": "category",
-                      "value": "Tech",
-                      "type": "text"
-                    },
-                    {
-                      "key": "thumbnail",
-                      "type": "file",
-                      "src": []
-                    }
-                  ]
-                },
-                "url": "{{base_url}}/api/v1/admin/articles"
+                "url": "{{base_url}}/api/v1/admin/mentors/{{mentor_id}}"
               }
             },
             {
-              "name": "Perbarui Artikel",
+              "name": "Perbarui Mentor",
               "request": {
                 "method": "PUT",
                 "header": [],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    {
-                      "key": "title",
-                      "value": "Updated Title",
-                      "type": "text"
-                    }
-                  ]
+                  "mode": "raw",
+                  "raw": "{\n  \"mentor_name\": \"Updated Name\",\n  \"mentor_title\": \"Updated Title\"\n}",
+                  "options": { "raw": { "language": "json" } }
                 },
-                "url": "{{base_url}}/api/v1/admin/articles/{{article_id}}"
-              }
-            },
-            {
-              "name": "Hapus Artikel",
-              "request": {
-                "method": "DELETE",
-                "header": [],
-                "url": "{{base_url}}/api/v1/admin/articles/{{article_id}}"
+                "url": "{{base_url}}/api/v1/admin/mentors/{{mentor_id}}"
               }
             }
           ]
@@ -1529,11 +1484,7 @@
       "value": "",
       "type": "string"
     },
-    {
-      "key": "article_id",
-      "value": "",
-      "type": "string"
-    },
+    
     {
       "key": "certificate_id",
       "value": "",

@@ -8,13 +8,20 @@ const router = express.Router();
 
 // Impor controller untuk Mentor
 const {
-  getMentors,
+  getAllMentors,
   getMentorById,
-  updateMentor
+  createMentor,
+  updateMentor,
+  deleteMentor,
 } = require('../controllers/mentorController');
 
 // Impor middleware otorisasi
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
+
+// Impor middleware upload
+const { validateFile } = require('../middlewares/uploadMiddleware');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
 
 // --- Pemasangan Middleware Global ---
 router.use(protect);
@@ -25,22 +32,36 @@ router.use(isAdmin);
 /**
  * @method GET
  * @route /mentors
- * @description Mengambil semua mentor (derived dari courses)
+ * @description Mengambil semua mentor dengan pagination
  */
-router.get('/mentors', getMentors);
+router.get('/mentors', getAllMentors);
 
 /**
  * @method GET
  * @route /mentors/:id
- * @description Mengambil detail mentor dan courses yang diajar
+ * @description Mengambil detail mentor berdasarkan ID
  */
 router.get('/mentors/:id', getMentorById);
 
 /**
+ * @method POST
+ * @route /mentors
+ * @description Membuat mentor baru
+ */
+router.post('/mentors', upload.single('photo'), validateFile, createMentor);
+
+/**
  * @method PUT
  * @route /mentors/:id
- * @description Update mentor info di semua courses
+ * @description Update mentor info
  */
-router.put('/mentors/:id', updateMentor);
+router.put('/mentors/:id', upload.single('photo'), validateFile, updateMentor);
+
+/**
+ * @method DELETE
+ * @route /mentors/:id
+ * @description Hapus mentor
+ */
+router.delete('/mentors/:id', deleteMentor);
 
 module.exports = router;

@@ -15,6 +15,12 @@ const {
   getPublicCourseDetail,
 } = require('../controllers/publicCatalogController');
 
+// Impor controller untuk Kategori
+const { getActiveCategories } = require('../controllers/categoryController');
+
+// Impor controller untuk Mentor
+const { getActiveMentors } = require('../controllers/mentorController');
+
 // --- Pemasangan Middleware ---
 /**
  * Rute di bawah ini bersifat publik (Public Access) dan
@@ -50,5 +56,19 @@ router.get('/catalog/courses', getPublicCourses);
  * @description Mengambil detail satu Course.
  */
 router.get('/catalog/courses/:id', getPublicCourseDetail);
+
+/**
+ * @method GET
+ * @route /catalog/categories
+ * @description Mengambil daftar semua Kategori yang aktif untuk dropdown.
+ */
+router.get('/catalog/categories', getActiveCategories);
+
+/**
+ * @method GET
+ * @route /catalog/mentors
+ * @description Mengambil daftar semua Mentor yang aktif untuk dropdown.
+ */
+router.get('/catalog/mentors', getActiveMentors);
 
 module.exports = router;
