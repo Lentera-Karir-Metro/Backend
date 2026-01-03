@@ -106,6 +106,9 @@ app.use('/api/v1/dashboard', dashboardRoutes); // Dashboard User (Wajib Login)
 const certificateRoutes = require('./src/routes/certificateRoutes');
 app.use('/api/v1/certificates', certificateRoutes); // Certificate User (Wajib Login)
 
+const userCertificateRoutes = require('./src/routes/userCertificateRoutes');
+app.use('/api/v1/user-certificates', userCertificateRoutes); // User Certificate Generation (Wajib Login)
+
 
 
 // 6. Jalankan Server & Tes Koneksi Database

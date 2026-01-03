@@ -14,6 +14,7 @@ const {
   Sequelize
 } = db;
 const { generateCustomId } = require('../utils/idGenerator');
+const { autoGenerateCertificate } = require('../utils/autoGenerateCertificate');
 const { Op } = Sequelize;
 
 /**
@@ -299,11 +300,31 @@ const markModuleAsComplete = async (req, res) => {
 
     console.log('[markModuleAsComplete] Progress saved:', { created, progress: progress.id });
 
-    console.log('[markModuleAsComplete] Progress saved:', { created, progress: progress.id });
-
-    // 5. Check if Learning Path is 100% complete → Auto-generate certificate
+    // 5. Check if Course is 100% complete → Return completion status
+    let courseCompleted = false;
+    let eligibleForCertificate = false;
+    
     if (created) {
-      await checkAndCreatePendingCertificate(userId, module.course_id);
+      const totalModules = await Module.count({ where: { course_id: module.course_id } });
+      const completedModules = await UserModuleProgress.count({
+        where: { user_id: userId, is_completed: true },
+        include: {
+          model: Module,
+          as: 'module',
+          where: { course_id: module.course_id },
+          required: true
+        }
+      });
+
+      courseCompleted = (totalModules > 0 && completedModules >= totalModules);
+      
+      // Check if already has certificate
+      const { Certificate } = db;
+      const existingCert = await Certificate.findOne({
+        where: { user_id: userId, course_id: module.course_id }
+      });
+      
+      eligibleForCertificate = courseCompleted && !existingCert;
     }
 
     console.log('[markModuleAsComplete] Success');
@@ -312,7 +333,10 @@ const markModuleAsComplete = async (req, res) => {
       data: {
         module_id: module.id,
         is_completed: true,
-        created: created
+        created: created,
+        course_completed: courseCompleted,
+        eligible_for_certificate: eligibleForCertificate,
+        course_id: module.course_id
       }
     });
 
@@ -323,53 +347,6 @@ const markModuleAsComplete = async (req, res) => {
       message: 'Server error.',
       error: err.message
     });
-  }
-};
-
-/**
- * @function checkAndGenerateCertificate
- * @description Check progress learning path, jika 100% auto-generate certificate
- * @param {string} userId - ID user
- * @param {string} learningPathId - ID learning path
- */
-const checkAndCreatePendingCertificate = async (userId, courseId) => {
-  try {
-    const { Certificate } = db;
-
-    // Jika sudah ada certificate (pending atau generated), skip
-    const existingCert = await Certificate.findOne({ where: { user_id: userId, course_id: courseId } });
-    if (existingCert) return;
-
-    // Hitung total modules di course ini
-    const totalModules = await Module.count({ where: { course_id: courseId } });
-
-    // Hitung completed modules user untuk course ini
-    const completedModules = await UserModuleProgress.count({
-      where: { user_id: userId },
-      include: { model: Module, as: 'module', required: true, where: { course_id: courseId } }
-    });
-
-    if (totalModules === 0) return;
-
-    const progressPercent = Math.round((completedModules / totalModules) * 100);
-    if (progressPercent >= 100) {
-      const certId = generateCustomId('CERT');
-      await Certificate.create({
-        id: certId,
-        user_id: userId,
-        course_id: courseId,
-        recipient_name: null,
-        course_title: null,
-        instructor_name: null,
-        issued_at: new Date(),
-        total_hours: 0,
-        certificate_url: null,
-        status: 'pending'
-      });
-      console.log('Created pending certificate for user', userId, 'course', courseId);
-    }
-  } catch (err) {
-    console.error('Error in checkAndCreatePendingCertificate:', err.message);
   }
 };
 

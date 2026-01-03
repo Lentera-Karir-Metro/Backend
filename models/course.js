@@ -44,6 +44,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'mentor_id',
         as: 'mentorData',
       });
+      // Sebuah Course belongs to satu CertificateTemplate (optional)
+      Course.belongsTo(models.CertificateTemplate, {
+        foreignKey: 'certificate_template_id',
+        as: 'certificateTemplate',
+      });
     }
   }
 
@@ -76,6 +81,7 @@ module.exports = (sequelize, DataTypes) => {
     mentor_title: { type: DataTypes.STRING, allowNull: true }, // Legacy field
     mentor_photo_profile: { type: DataTypes.STRING, allowNull: true }, // Legacy field
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'published' },
+    certificate_template_id: { type: DataTypes.INTEGER, allowNull: true }, // FK to CertificateTemplate for auto-generation
   }, {
     sequelize,
     modelName: 'Course',

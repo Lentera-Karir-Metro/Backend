@@ -144,7 +144,7 @@ const createCourse = async (req, res) => {
 const { deleteFromSupabase } = require('../utils/uploadToSupabase');
 
 const updateCourse = async (req, res) => {
-  const { title, description, price, discount_amount, category, mentor_id, mentor_name, mentor_title, status } = req.body;
+  const { title, description, price, discount_amount, category, mentor_id, mentor_name, mentor_title, status, certificate_template_id } = req.body;
   try {
     const course = await Course.findByPk(req.params.id);
     if (!course) {
@@ -160,6 +160,7 @@ const updateCourse = async (req, res) => {
     course.mentor_name = mentor_name || course.mentor_name;
     course.mentor_title = mentor_title || course.mentor_title;
     course.status = status || course.status;
+    course.certificate_template_id = certificate_template_id !== undefined ? certificate_template_id : course.certificate_template_id;
 
     // Handle File Uploads (Update)
     if (req.files) {
