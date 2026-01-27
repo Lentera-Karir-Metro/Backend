@@ -170,12 +170,9 @@ const getLearningPathContent = async (req, res) => {
         include: {
           model: Module,
           as: 'modules',
+          order: [['sequence_order', 'ASC']]
         },
-      },
-      order: [
-        [{ model: Course, as: 'courses' }, 'LearningPathCourse', 'sequence_order', 'ASC'],
-        [{ model: Course, as: 'courses' }, { model: Module, as: 'modules' }, 'sequence_order', 'ASC']
-      ]
+      }
     });
 
     if (!learningPath) return res.status(404).json({ message: 'Learning Path tidak ditemukan.' });
@@ -546,7 +543,7 @@ const getCourseContent = async (req, res) => {
 
     // 3. Ambil Data Course dari DB
     const course = await Course.findByPk(course_id, {
-      attributes: ['id', 'title', 'description', 'thumbnail_url', 'mentor_name', 'mentor_title', 'mentor_photo_profile'],
+      attributes: ['id', 'title', 'description', 'thumbnail_url', 'mentor_name', 'mentor_title', 'mentor_photo_profile', 'createdAt', 'updatedAt'],
       include: {
         model: Module,
         as: 'modules',
@@ -660,6 +657,8 @@ const getCourseContent = async (req, res) => {
       title: courseData.title,
       description: courseData.description,
       thumbnail_url: courseData.thumbnail_url,
+      created_at: courseData.createdAt,
+      updated_at: courseData.updatedAt,
       mentor: mentor,
       courses: [{
         course_id: courseData.id,

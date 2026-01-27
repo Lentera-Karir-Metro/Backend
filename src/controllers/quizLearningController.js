@@ -95,7 +95,7 @@ const startOrResumeQuiz = async (req, res) => {
     // 4. Ambil semua soal dan opsi (kirim semua sekaligus)
     // PENTING: attribute is_correct JANGAN disertakan di sini
     const quizData = await Quiz.findByPk(quiz_id, {
-      attributes: ['id', 'title', 'pass_threshold'],
+      attributes: ['id', 'title', 'pass_threshold', 'course_id'],
       include: {
         model: Question,
         as: 'questions',

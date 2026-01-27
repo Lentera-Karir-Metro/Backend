@@ -86,11 +86,15 @@ app.use('/api/v1/admin', mentorRoutes); // Mentor Management
 const categoryRoutes = require('./src/routes/categoryRoutes');
 app.use('/api/v1/admin/categories', categoryRoutes); // Category Management
 
-// --- C. Rute Otomatisasi (Webhooks) ---
+// --- C. AI Assistant (Publik - HARUS DIPASANG TERLEBIH DAHULU) ---
+const assistantRoutes = require('./src/routes/assistant');
+app.use('/api/v1/assistant', assistantRoutes); // AI Assistant Chat (Tidak Terproteksi)
+
+// --- D. Rute Otomatisasi (Webhooks) ---
 const webhookRoutes = require('./src/routes/webhookRoutes');
 app.use('/api/v1', webhookRoutes); // Webhook Midtrans & Supabase (Tidak Terproteksi)
 
-// --- D. Rute User & Publik ---
+// --- E. Rute User & Publik ---
 const publicRoutes = require('./src/routes/publicRoutes');
 app.use('/api/v1', publicRoutes); // Katalog Publik (Tidak Terproteksi)
 
@@ -108,8 +112,6 @@ app.use('/api/v1/certificates', certificateRoutes); // Certificate User (Wajib L
 
 const userCertificateRoutes = require('./src/routes/userCertificateRoutes');
 app.use('/api/v1/user-certificates', userCertificateRoutes); // User Certificate Generation (Wajib Login)
-
-
 
 // 6. Jalankan Server & Tes Koneksi Database
 /**

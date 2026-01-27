@@ -151,9 +151,29 @@ exports.getRecommendedCourses = async (req, res) => {
 
   try {
     // Ambil kategori dari learning path yang sudah user ikuti
-    // Recommended: return latest LearningPaths (no category/rating fields available anymore)
-    const recommended = await LearningPath.findAll({ attributes: ['id', 'title', 'description'], limit: 6, order: [['createdAt', 'DESC']] });
-    return res.status(200).json({ success: true, data: recommended });
+    // Recommended: return latest LearningPaths with thumbnail and course count
+    const recommended = await LearningPath.findAll({ 
+      attributes: ['id', 'title', 'description', 'thumbnail', 'createdAt'],
+      include: [{
+        model: db.Course,
+        as: 'courses',
+        attributes: ['id'],
+        through: { attributes: [] }
+      }],
+      limit: 6, 
+      order: [['createdAt', 'DESC']] 
+    });
+    
+    // Map to include course_count
+    const result = recommended.map(lp => ({
+      id: lp.id,
+      title: lp.title,
+      description: lp.description,
+      thumbnail_url: lp.thumbnail,
+      course_count: lp.courses ? lp.courses.length : 0
+    }));
+    
+    return res.status(200).json({ success: true, data: result });
   } catch (err) {
     console.error('Error getRecommendedCourses:', err);
     return res.status(500).json({

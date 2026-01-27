@@ -12,17 +12,17 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { sendVerificationEmail, sendResetPasswordEmail } = require('../utils/emailService');
 
-// Access Token: Umur pendek (15 menit) untuk keamanan
+// Access Token: Umur pendek untuk keamanan (6 jam untuk mobile app experience)
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'secret_key_lentera_karir', {
-    expiresIn: '1h',
+    expiresIn: '6h',
   });
 };
 
 // Refresh Token: Umur panjang (7 hari) untuk memperbarui sesi
 const generateRefreshToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || 'refresh_secret_key_lentera_karir', {
-    expiresIn: '2h',
+    expiresIn: '7d',
   });
 };
 
@@ -320,6 +320,107 @@ const checkUserStatus = async (req, res) => {
   }
 };
 
+/**
+ * @function updateProfile
+ * @description Update user profile (username/name only)
+ * @route PUT /api/v1/auth/profile
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const { name, username } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+
+    // Update username/name
+    if (name || username) {
+      user.username = name || username;
+      await user.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profil berhasil diperbarui',
+      data: {
+        id: user.id,
+        name: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @function changePassword
+ * @description Change user password (requires current password)
+ * @route PUT /api/v1/auth/change-password
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password lama dan password baru harus diisi'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password baru minimal 6 karakter'
+      });
+    }
+
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password lama tidak sesuai'
+      });
+    }
+
+    // Update password (akan di-hash oleh hook beforeUpdate)
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password berhasil diubah'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   register,
   verifyEmail,
@@ -328,6 +429,8 @@ module.exports = {
   resetPassword,
   refreshToken,
   getCurrentUser,
-  checkUserStatus
+  checkUserStatus,
+  updateProfile,
+  changePassword
 };
 
