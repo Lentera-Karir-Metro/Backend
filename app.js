@@ -15,7 +15,38 @@ const app = express();
 const PORT = process.env.PORT || 3000; // Menggunakan port dari .env atau default 3000
 
 // 3. Pasang Middleware Global
-app.use(cors()); // Memasang CORS
+// Konfigurasi CORS untuk production
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Ambil FRONTEND_URL dari .env (bisa multiple, pisahkan dengan koma)
+    const frontendUrls = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+      : [];
+
+    // Daftar domain yang diizinkan
+    const allowedOrigins = [
+      'http://localhost:3001', // Frontend development
+      'http://localhost:3000',
+      ...frontendUrls, // Dari .env (bisa multiple)
+    ].filter(Boolean); // Filter undefined values
+
+    // Izinkan request tanpa origin (seperti mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Izinkan cookies/credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions)); // Memasang CORS dengan konfigurasi
 app.use(express.json({ limit: '1000mb' })); // Memungkinkan parsing request body dalam format JSON dengan limit 1GB
 app.use(express.urlencoded({ limit: '1000mb', extended: true })); // Support form-urlencoded dengan limit 1GB
 
